@@ -1,2 +1,2 @@
 out:
-	cc chatroom.c main.c -o sa
+	cc general.c chatroom.c main.c -o sa
