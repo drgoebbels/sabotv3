@@ -8,13 +8,13 @@ static FILE *log_file;
 static void log_format(const char *format, const char *name, va_list args);
 
 void log_init_name(const char *name) {
-	FILE *f = fopen(name, "a");	
-	if(!f) {
+	FILE *file = fopen(name, "a");	
+	if(!file) {
 			perror("Failed to Open file");
 			fprintf(stderr, "Warning: Failed to open log file %s for writing. Failling back on stdout.\n", name);
 			log_file = stdout;
 	}
-	log_file = f;
+	log_file = file;
 }
 
 void log_init(FILE *file) {
@@ -51,7 +51,7 @@ void log_format(const char *format, const char *name, va_list args) {
 	local_time = localtime(&now);
 	strftime(buffer, 64, "%Y-%m-%dT%H:%M:%S%z", local_time);
 
-	fprintf(log_file, "*%s* %s\t", name, buffer);
+	fprintf(log_file, "*%s*\t%s\t", name, buffer);
 	vfprintf(log_file, format, args);
 	fputc('\n', log_file);
 }

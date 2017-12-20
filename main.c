@@ -1,11 +1,25 @@
 #include "log.h"
+#include "server.h"
 #include <stdio.h>
 
+#define LISTEN_PORT 5454
+
+static void shutdown(void);
+
 int main(void) {
-	log_init_name("test.log");
-	log_info("hello turd");
-	log_end();
+	int result; 
+
+	log_init_name("logs/test.log");
+	log_info("Starting SA Bot V3");
+	result = server_start(LISTEN_PORT);
+	if(result < 0) {
+		log_error("Failed to start server on port %d.", LISTEN_PORT);
+	}
 	return 0;
 }
 
+void shutdown(void) {
+	log_info("Gracefully Shutting down SA Bot V3");
+	log_end();
+}
 
