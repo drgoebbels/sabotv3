@@ -9,7 +9,7 @@ static void shutdown(void);
 int main(void) {
 	int result; 
 
-	log_init_name("logs/test.log");
+	log_init_name("sabot.log");
 	log_info("Starting SA Bot V3");
 	result = server_start(LISTEN_PORT);
 	if(result < 0) {
