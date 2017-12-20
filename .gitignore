@@ -1,2 +1,4 @@
 sa
 .pass
+.*.swp
+*.log

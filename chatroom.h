@@ -15,6 +15,6 @@ struct sa_connection_s {
 const char *SERVER_2D_CENTRAL = "45.76.234.65";
 //more servers here
 
-extern void 
+//extern void 
 
 #endif
