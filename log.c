@@ -3,12 +3,14 @@
 #include <stdarg.h>
 #include <time.h>
 #include <errno.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 static FILE *log_file;
 
 static void log_format(const char *format, const char *name, va_list args);
+static void log_format_errno(const char *format, const char *name, va_list args);
 static int log_create_directory(void);
 
 int log_init_name(const char *name) {
@@ -58,6 +60,14 @@ void log_error(const char *format, ...) {
 	va_end(args);
 }
 
+void log_error_errno(const char *format, ...) {
+	va_list args;
+
+	va_start(args, format);
+	log_format(format, "ERROR", args);
+	va_end(args);
+}
+
 void log_format(const char *format, const char *name, va_list args) {
 	time_t now;
 	char buffer[64];
@@ -68,6 +78,25 @@ void log_format(const char *format, const char *name, va_list args) {
 	strftime(buffer, 64, "%Y-%m-%dT%H:%M:%S%z", local_time);
 	fprintf(log_file, "*%s*\t%s\t", name, buffer);
 	vfprintf(log_file, format, args);
+	fputc('\n', log_file);
+}
+
+void log_format_errno(const char *format, const char *name, va_list args) {
+	time_t now;
+	int err;
+	char buffer[ERR_BUF_SIZE + 1];
+	struct tm *local_time;
+
+	now = time(NULL);
+	local_time = localtime(&now);
+	strftime(buffer, 64, "%Y-%m-%dT%H:%M:%S%z", local_time);
+	fprintf(log_file, "*%s*\t%s\t", name, buffer);
+	vfprintf(log_file, format, args);
+	fputs(" : ", log_file);
+	buffer[ERR_BUF_SIZE + 1] = '\0';
+	while((err = strerror_r(errno, buffer, ERR_BUF_SIZE)) != 0) {
+		fputs(buffer, log_file);
+	}
 	fputc('\n', log_file);
 }
 
