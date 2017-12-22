@@ -6,7 +6,7 @@
 #define LOG_PATH "./logs"
 
 extern int log_init_name(const char *name);
-extern void log_init(FILE *file);
+extern int log_init(FILE *file);
 extern void log_puts(const char *format, ...);
 extern void log_info(const char *format, ...);
 extern void log_warn(const char *format, ...);

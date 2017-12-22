@@ -23,7 +23,6 @@ int socks5_connect(const char *server, int port) {
 		log_error("Connection to proxy server failed %s:%d", server, port);
 		return fd;
 	}
-
 	send(fd, init_payload, sizeof(init_payload), 0);
 	result = recv(fd, buf, 2, 0);
 	if(result == 2)  {
@@ -52,6 +51,14 @@ int try_connect(const char *server, int port) {
 		close(fd);
 		return -1;
 	}
+
+	result = connect(fd, (struct sockaddr *)&dest, sizeof(dest));
+	if(result < 0) {
+		log_error_errno("Error on connect() to server %s:%d", server, port);
+		close(fd);
+		return -1;
+	}
+
 	return fd;
 }
 

@@ -4,10 +4,12 @@
 #include <time.h>
 #include <errno.h>
 #include <string.h>
+#include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 static FILE *log_file;
+static pthread_mutex_t lock;
 
 static void log_format(const char *format, const char *name, va_list args);
 static void log_format_errno(const char *format, const char *name, va_list args);
@@ -31,19 +33,32 @@ int log_init_name(const char *name) {
 		log_file = stdout;
 		return -1;
 	}
-	log_file = file;
-	return 0;
+	return log_init(file);
 }
 
-void log_init(FILE *file) {
+int log_init(FILE *file) {
+	int result;
+
 	log_file = file;
+	result = pthread_mutex_init(&lock, NULL);
+	if(result) {
+		perror("Failed to initialize log file mutex.");
+		if(file != stdout && file != stderr) {
+			fclose(file);
+		}
+		return -1;
+	}
+	return 0;
 }
 
 void log_puts(const char *format, ...) {
 	va_list args;
 	va_start(args, format);
+	pthread_mutex_lock(&lock);
 	vfprintf(log_file, format, args);
 	fputc('\n', log_file);
+	fflush(log_file);
+	pthread_mutex_unlock(&lock);
 	va_end(args);
 }
 
@@ -84,9 +99,12 @@ void log_format(const char *format, const char *name, va_list args) {
 	now = time(NULL);
 	local_time = localtime(&now);
 	strftime(buffer, 64, "%Y-%m-%dT%H:%M:%S%z", local_time);
+	pthread_mutex_lock(&lock);
 	fprintf(log_file, "*%s*\t%s\t", name, buffer);
 	vfprintf(log_file, format, args);
 	fputc('\n', log_file);
+	fflush(log_file);
+	pthread_mutex_unlock(&lock);
 }
 
 void log_format_errno(const char *format, const char *name, va_list args) {
@@ -98,6 +116,7 @@ void log_format_errno(const char *format, const char *name, va_list args) {
 	now = time(NULL);
 	local_time = localtime(&now);
 	strftime(buffer, 64, "%Y-%m-%dT%H:%M:%S%z", local_time);
+	pthread_mutex_lock(&lock);
 	fprintf(log_file, "*%s*\t%s\t", name, buffer);
 	vfprintf(log_file, format, args);
 	fputs(" : ", log_file);
@@ -106,12 +125,20 @@ void log_format_errno(const char *format, const char *name, va_list args) {
 		fputs(buffer, log_file);
 	}
 	fputc('\n', log_file);
+	fflush(log_file);
+	pthread_mutex_unlock(&lock);
 }
 
 void log_end(void) {
+	int result; 
+
 	fflush(log_file);
 	if(log_file != stdout && log_file != stderr) {
 		fclose(log_file);
+	}
+	result = pthread_mutex_destroy(&lock);
+	if(result) {
+		perror("Failed to destroy log file lock mutex");
 	}
 }
 
