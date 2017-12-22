@@ -94,7 +94,7 @@ pool_task_s *pool_task_create(pool_s *pool, void *(*f)(void *), void *arg) {
 		return NULL;
 	}
 	pthread_mutex_lock(&pool->qlock);
-	if(pool->tail) {
+	if(pool->head) {
 		pool->tail->next = t;
 	}
 	else {
@@ -138,8 +138,6 @@ void *core_thread(void *args) {
 		if(pool->head) {
 			task = pool->head;
 			pool->head = pool->head->next;
-			if(!pool->head)
-				pool->tail = NULL;
 			pthread_mutex_unlock(&pool->qlock);
 			pthread_mutex_lock(&task->lock);
 			task->result = task->f(task->arg);
