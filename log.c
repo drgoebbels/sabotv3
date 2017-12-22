@@ -39,6 +39,14 @@ void log_init(FILE *file) {
 	log_file = file;
 }
 
+void log_puts(const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	vfprintf(log_file, format, args);
+	fputc('\n', log_file);
+	va_end(args);
+}
+
 void log_info(const char *format, ...) {
 	va_list args;
 	va_start(args, format);
@@ -101,9 +109,10 @@ void log_format_errno(const char *format, const char *name, va_list args) {
 }
 
 void log_end(void) {
-		if(log_file != stdout && log_file != stderr) {
-			fclose(log_file);
-		}
+	fflush(log_file);
+	if(log_file != stdout && log_file != stderr) {
+		fclose(log_file);
+	}
 }
 
 int log_create_directory(void) {
