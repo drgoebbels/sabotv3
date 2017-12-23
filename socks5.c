@@ -25,6 +25,7 @@ int socks5_connect(const char *server, int port) {
 	}
 	send(fd, init_payload, sizeof(init_payload), 0);
 	result = recv(fd, buf, 2, 0);
+	puts(buf);
 	if(result == 2)  {
 		buf[2] = '\0';
 		log_info("Got Server response %2x,%2x", *buf, *(buf + 1));
