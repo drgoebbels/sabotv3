@@ -10,31 +10,34 @@
 
 #define RECV_BUFFER_SIZE 512
 
-static const char init_payload[] = {0x05, 0x01, 0x00};
 
-static int try_connect(const char *server, int port);
+static int proxy_try_connect(const char *server, int port);
+static int proxy_subnegotiation(int fd);
+static int proxy_request_details(int fd, const char *server, int port);
 
-int socks5_connect(const char *server, int port) {
+int socks5_connect(const char *proxy_server, int proxy_port,
+		const char *server, int port) {
 	int fd, result;
-	char buf[RECV_BUFFER_SIZE];
 
-	fd = try_connect(server, port);
+	fd = proxy_try_connect(proxy_server, proxy_port);
 	if(fd < 0) {
-		log_error("Connection to proxy server failed %s:%d", server, port);
-		return fd;
+		log_error("Connection to proxy server failed %s:%d", 
+				proxy_server, proxy_port);
+		return -1;
 	}
-	send(fd, init_payload, sizeof(init_payload), 0);
-	result = recv(fd, buf, 2, 0);
-	puts(buf);
-	if(result == 2)  {
-		buf[2] = '\0';
-		log_info("Got Server response %2x,%2x", *buf, *(buf + 1));
-	}
+    result = proxy_subnegotiation(fd);
+    if(result < 0) {
+        log_error("Subnegotaition failed");
+        close(fd);
+        return -1;
+    }
+    result = proxy_request_details(fd, server, port);
+    
 	return fd;	
 }
 
 
-int try_connect(const char *server, int port) {
+int proxy_try_connect(const char *server, int port) {
 	int fd, result;
 	struct sockaddr_in dest;
 
@@ -52,14 +55,83 @@ int try_connect(const char *server, int port) {
 		close(fd);
 		return -1;
 	}
-
 	result = connect(fd, (struct sockaddr *)&dest, sizeof(dest));
 	if(result < 0) {
 		log_error_errno("Error on connect() to server %s:%d", server, port);
 		close(fd);
 		return -1;
 	}
-
 	return fd;
+}
+
+int proxy_subnegotiation(int fd) {
+	int result;
+	char buf[RECV_BUFFER_SIZE];
+    const char init_payload[] = 
+        {0x05, 0x01, 0x00};
+
+	send(fd, init_payload, sizeof(init_payload), 0);
+	result = recv(fd, buf, 2, 0);
+	if(result == 2)  {
+		buf[2] = '\0';
+		if(buf[0] == 0x5 && buf[1] == 0x0) {
+			return 0;
+		}
+		else {
+			log_error("Unexpected Server Response: %s", buf);
+		}
+	}
+	else {
+		log_error("Unexpected response size in connection");
+    }
+    return -1;
+}
+
+int proxy_request_details(int fd, const char *server, int port) {
+    char payload[10];
+    in_addr_t i_val;
+    int result;
+    char addr[4];
+    char response[10];
+	struct sockaddr_in dest;
+
+    log_info("attempting to connect to server: %s:%d", server, port);
+	memset(&dest, 0, sizeof(dest));
+	dest.sin_family = AF_INET;
+	dest.sin_port = htons(port);
+	result = inet_aton(server, &dest.sin_addr);
+	if(!result) {
+		log_error_errno("Error on inet_aton() for server %s:%d", server, port);
+		return -1;
+	}
+    payload[0] = 0x05;
+    payload[1] = 0x01;
+    payload[2] = 0x00;
+    payload[3] = 0x01;
+
+    i_val = dest.sin_addr.s_addr;
+    //payload[4] = (i_val >> 24) & 0xFF;
+    //payload[5] = (i_val >> 16) & 0xFF;
+    //payload[6] = (i_val >> 8 ) & 0xFF;
+    //payload[7] = i_val & 0xFF;
+    //payload[4] = i_val & 0xFF;
+    //payload[5] = (i_val >> 8) & 0xFF;
+    //payload[6] = (i_val >> 16) & 0xFF;
+    //payload[7] = (i_val >> 24) & 0xFF;
+    memcpy(&payload[4], &i_val, sizeof(i_val));
+    printf("payload: %d\n", payload[4]);
+    memcpy(&payload[8], &dest.sin_port, sizeof(dest.sin_port));
+
+    //payload[8] = dest.sin_port & 0xFF;
+    //payload[9] = (dest.sin_port >> 8) & 0xFF;
+   // payload[8] = (dest.sin_port >> 8) & 0xFF;
+   // payload[9] = dest.sin_port & 0xFF;
+
+
+	send(fd, payload, sizeof(payload), 0);
+	result = recv(fd, response, sizeof(response), 0);
+    log_info("response size: %d\n", result);
+    log_info("response: %d-%d", payload[0], payload[1]);
+    return -1;
 }
 

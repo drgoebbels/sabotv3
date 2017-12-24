@@ -1,5 +1,6 @@
 #include "log.h"
 #include "pool.h"
+#include "chatroom.h"
 #include "server.h"
 #include "socks5.h"
 #include <stdio.h>
@@ -36,7 +37,6 @@ static void thread_pool_test(void) {
 		if(tasks[i] != NULL)
 		pool_destroy_task(tasks[i]);
 	}
-
 	log_info("shutting down");
 	pool_shutdown(pool);
 }
@@ -45,14 +45,14 @@ int main(void) {
 	int result, fd; 
 
 	log_init_name("sabot.log");
-	log_puts("---------------------------------------------------------");
-	log_info("Starting SA Bot V3");
-
+	log_puts("##########################################################");
+	log_puts("------------------- Starting SA Bot V3 -------------------");
+	log_puts("==========================================================");
 	result = server_start(LISTEN_PORT);
 	if(result < 0) {
 		log_error("Failed to start server on port %d.", LISTEN_PORT);
 	}
-	fd = socks5_connect(PROXY_SERVER, PROXY_PORT);
+	fd = socks5_connect(PROXY_SERVER, PROXY_PORT, SERVER_2D_CENTRAL, SA_PORT);
 	if(fd >= 0) {
 		log_info("Successful connection: Got fd: %d", fd);
 	}
@@ -66,7 +66,6 @@ int main(void) {
 
 void shutdown(void) {
 	log_info("Gracefully Shutting down SA Bot V3");
-	log_puts("---------------------------------------------------------");
 	log_end();
 }
 
