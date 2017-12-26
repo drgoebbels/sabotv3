@@ -62,6 +62,13 @@ void log_puts(const char *format, ...) {
 	va_end(args);
 }
 
+void log_debug(const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	log_format(format, "DEBUG", args);
+	va_end(args);
+}
+
 void log_info(const char *format, ...) {
 	va_list args;
 	va_start(args, format);
