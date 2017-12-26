@@ -54,7 +54,7 @@ int proxy_pick_method(int fd, socks5_method_e method) {
 			return 0;
 		}
 		else {
-			log_error("Unexpected Server Response in %s(): %2x.%2x", buf[0], buf[1]);
+			log_error("Unexpected Server Response in %s(): 0x%02x.0x%02x", buf[0], buf[1]);
 		}
 	}
 	else {
@@ -108,7 +108,7 @@ int proxy_connect_ipv4(int fd, const char *server, int port) {
             return 0;
         }
         else {
-			log_error("Unexpected Server Response in %s(): %2x.%2x", 
+			log_error("Unexpected Server Response in %s(): 0x%02x.0x%02x", 
                     __func__, buf[0], buf[1]);
         }
     }
