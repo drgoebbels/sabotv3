@@ -10,7 +10,6 @@
 
 #define RECV_BUFFER_SIZE 512
 
-
 static int proxy_try_connect(const char *server, int port);
 static int proxy_subnegotiation(int fd);
 static int proxy_request_details(int fd, const char *server, int port);
@@ -110,23 +109,8 @@ int proxy_request_details(int fd, const char *server, int port) {
     payload[3] = 0x01;
 
     i_val = dest.sin_addr.s_addr;
-    //payload[4] = (i_val >> 24) & 0xFF;
-    //payload[5] = (i_val >> 16) & 0xFF;
-    //payload[6] = (i_val >> 8 ) & 0xFF;
-    //payload[7] = i_val & 0xFF;
-    //payload[4] = i_val & 0xFF;
-    //payload[5] = (i_val >> 8) & 0xFF;
-    //payload[6] = (i_val >> 16) & 0xFF;
-    //payload[7] = (i_val >> 24) & 0xFF;
     memcpy(&payload[4], &i_val, sizeof(i_val));
-    printf("payload: %d\n", payload[4]);
     memcpy(&payload[8], &dest.sin_port, sizeof(dest.sin_port));
-
-    //payload[8] = dest.sin_port & 0xFF;
-    //payload[9] = (dest.sin_port >> 8) & 0xFF;
-   // payload[8] = (dest.sin_port >> 8) & 0xFF;
-   // payload[9] = dest.sin_port & 0xFF;
-
 
 	send(fd, payload, sizeof(payload), 0);
 	result = recv(fd, response, sizeof(response), 0);
