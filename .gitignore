@@ -3,3 +3,4 @@ sa
 .*.swp
 *.log
 logs
+test.sh
