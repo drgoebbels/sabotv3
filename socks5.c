@@ -11,8 +11,8 @@
 #define RECV_BUFFER_SIZE 512
 
 static int proxy_try_connect(const char *server, int port);
-static int proxy_subnegotiation(int fd);
-static int proxy_request_details(int fd, const char *server, int port);
+static int proxy_pick_method(int fd, socks5_method_e method);
+static int proxy_connect_ipv4(int fd, const char *server, int port);
 
 int socks5_connect(const char *proxy_server, int proxy_port,
 		const char *server, int port) {
@@ -24,14 +24,13 @@ int socks5_connect(const char *proxy_server, int proxy_port,
 				proxy_server, proxy_port);
 		return -1;
 	}
-    result = proxy_subnegotiation(fd);
+    result = proxy_pick_method(fd, SOCKS5_NOAUTH);
     if(result < 0) {
         log_error("Subnegotaition failed");
         close(fd);
         return -1;
     }
-    result = proxy_request_details(fd, server, port);
-    
+    result = proxy_connect_ipv4(fd, server, port); 
 	return fd;	
 }
 
@@ -42,7 +41,7 @@ int proxy_try_connect(const char *server, int port) {
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 	if(fd < 0) {
-		log_error_errno("Socket Error - socket value %d", fd);
+		log_error_errno("Socket Error in %s() - socket value %d", __func__, fd);
 		return fd;
 	}
 	memset(&dest, 0, sizeof(dest));
@@ -50,48 +49,59 @@ int proxy_try_connect(const char *server, int port) {
 	dest.sin_port = htons(port);
 	result = inet_aton(server, &dest.sin_addr);
 	if(!result) {
-		log_error_errno("Error on inet_aton() for server %s", server);
+		log_error_errno("Error on inet_aton() in %s() for server %s", __func__, server);
 		close(fd);
 		return -1;
 	}
 	result = connect(fd, (struct sockaddr *)&dest, sizeof(dest));
 	if(result < 0) {
-		log_error_errno("Error on connect() to server %s:%d", server, port);
+		log_error_errno("Error on connect() in %s() to server %s:%d", __func__, server, port);
 		close(fd);
 		return -1;
 	}
 	return fd;
 }
 
-int proxy_subnegotiation(int fd) {
+int proxy_pick_method(int fd, socks5_method_e method) {
 	int result;
-	char buf[RECV_BUFFER_SIZE];
+	char buf[2];
     const char init_payload[] = 
-        {0x05, 0x01, 0x00};
+        {0x05, 0x01, method};
 
-	send(fd, init_payload, sizeof(init_payload), 0);
-	result = recv(fd, buf, 2, 0);
-	if(result == 2)  {
-		buf[2] = '\0';
-		if(buf[0] == 0x5 && buf[1] == 0x0) {
+	result = send(fd, init_payload, sizeof(init_payload), 0);
+    if(result != sizeof(init_payload)) {
+        if(result == -1) {
+            log_error_errno("An error occurred on send() in %s().", __func__);
+        }
+        else {
+            log_error("Unexpected number of bytes sent to server in %s(): %d", __func__, result);
+        }
+        return -1;
+     }
+	result = recv(fd, buf, sizeof(buf), 0);
+	if(result == sizeof(buf))  {
+		if(buf[0] == 0x05 && buf[1] == 0x00) {
 			return 0;
 		}
 		else {
-			log_error("Unexpected Server Response: %s", buf);
+			log_error("Unexpected Server Response in %s(): %2x.%2x", buf[0], buf[1]);
 		}
 	}
 	else {
-		log_error("Unexpected response size in connection");
+        if(result == -1) {
+            log_error_errno("An error occurred on recv() in %s()", __func__);
+        }
+        else {
+            log_error("Unexpected number of bytes received from server in %s(): %d", __func__, result);
+        }
     }
     return -1;
 }
 
-int proxy_request_details(int fd, const char *server, int port) {
-    char payload[10];
+int proxy_connect_ipv4(int fd, const char *server, int port) {
+    char buf[10];
     in_addr_t i_val;
     int result;
-    char addr[4];
-    char response[10];
 	struct sockaddr_in dest;
 
     log_info("attempting to connect to server: %s:%d", server, port);
@@ -100,22 +110,46 @@ int proxy_request_details(int fd, const char *server, int port) {
 	dest.sin_port = htons(port);
 	result = inet_aton(server, &dest.sin_addr);
 	if(!result) {
-		log_error_errno("Error on inet_aton() for server %s:%d", server, port);
+		log_error_errno("Error on inet_aton() for server %s:%d in %s()", server, port, __func__);
 		return -1;
 	}
-    payload[0] = 0x05;
-    payload[1] = 0x01;
-    payload[2] = 0x00;
-    payload[3] = 0x01;
+    buf[0] = 0x05;
+    buf[1] = 0x01;
+    buf[2] = 0x00;
+    buf[3] = 0x01;
 
     i_val = dest.sin_addr.s_addr;
-    memcpy(&payload[4], &i_val, sizeof(i_val));
-    memcpy(&payload[8], &dest.sin_port, sizeof(dest.sin_port));
+    memcpy(&buf[4], &i_val, sizeof(i_val));
+    memcpy(&buf[8], &dest.sin_port, sizeof(dest.sin_port));
 
-	send(fd, payload, sizeof(payload), 0);
-	result = recv(fd, response, sizeof(response), 0);
-    log_info("response size: %d\n", result);
-    log_info("response: %d-%d", payload[0], payload[1]);
+	result = send(fd, buf, sizeof(buf), 0);
+    if(result != sizeof(buf)) {
+        if(result == -1) {
+            log_error_errno("An error occurred on send() in %s().", __func__);
+        }
+        else {
+            log_error("Unexpected number of bytes sent to server in %s(): %d", __func__, result);
+        }
+        return -1;
+    }
+	result = recv(fd, buf, sizeof(buf), 0);
+    if(result == sizeof(buf)) {
+        if(buf[0] == 0x05 && buf [1] == 0x00) {
+            return 0;
+        }
+        else {
+			log_error("Unexpected Server Response in %s(): %2x.%2x", 
+                    __func__, buf[0], buf[1]);
+        }
+    }
+    else {
+        if(result == -1) {
+            log_error_errno("An error occurred on recv() in %s()", __func__);
+        }
+        else {
+            log_error("Unexpected number of bytes received from server in %s(): %d", __func__, result);
+        }
+    }
     return -1;
 }
 
