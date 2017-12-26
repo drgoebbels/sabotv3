@@ -52,7 +52,7 @@ int main(void) {
 	if(result < 0) {
 		log_error("Failed to start server on port %d.", LISTEN_PORT);
 	}
-	fd = socks5_connect(PROXY_SERVER, PROXY_PORT, SERVER_2D_CENTRAL, SA_PORT);
+	fd = socks5_connect(PROXY_SERVER, PROXY_PORT, SERVER_2D_CENTRAL, SA_PORT + 1);
 	if(fd >= 0) {
 		log_info("Successful connection: Got fd: %d", fd);
 	}
