@@ -9,6 +9,14 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#define BUF_SIZE 256
+
+#define SERVER_KEY "HxO9TdCC62Nwln1P"
+#define PREFIX_KEY "08"
+#define PREFIX_LOGIN "09"
+
+static int sa_login(sa_connection_s *con);
+
 sa_connection_s *sa_create_connection(
         const char *server, int port,
         const char *username, const char *password
@@ -64,5 +72,14 @@ int sa_direct_connect(sa_connection_s *con) {
         return -1;
     }
 
+}
+
+int sa_login(sa_connection_s *con) {
+    int result;
+    const char init[] = PREFIX_KEY SERVER_KEY; 
+
+    result = send(con->fd, init, sizeof(init), 0);
+    if(result != sizeof(init)) {
+    }
 }
 
