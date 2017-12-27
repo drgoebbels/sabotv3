@@ -34,11 +34,11 @@ static void thread_pool_test(void) {
 	}
 	for(i = 0; i < 500; i++) {
 		if(tasks[i] != NULL) 
-		pool_join_task(tasks[i]);
+			pool_join_task(tasks[i]);
 	}
 	for(i = 0; i < 500; i++) {
 		if(tasks[i] != NULL)
-		pool_destroy_task(tasks[i]);
+			pool_destroy_task(tasks[i]);
 	}
 	log_info("shutting down");
 	pool_shutdown(pool);
@@ -55,7 +55,7 @@ int main(void) {
 	if(result < 0) {
 		log_error("Failed to start server on port %d.", LISTEN_PORT);
 	}
-    result = sa_login_from_file_tor(SERVER_2D_CENTRAL);
+	result = sa_login_from_file_tor(SERVER_2D_CENTRAL);
 	if(result == 0) {
 		log_info("Successful connection");
 	}
@@ -67,51 +67,51 @@ int main(void) {
 }
 
 int sa_login_from_file_tor(const char *server) {
-    int c, i = 0, result;
-    sa_connection_s *con;
-    FILE *f;
-    char username[MAX_USERNAME_SIZE + 1];
-    char password[MAX_PASSWORD_SIZE + 1];
-    char *ptr = username;
-    
-    f = fopen(PASSWORD_FILE, "r");
-    if(!f) {
-        log_error_errno("Failed to open password file: %s in %s()", 
-                PASSWORD_FILE, __func__);
-        return -1;
-    }
-    while((c = fgetc(f)) != EOF) {
-        if(c == ':') {
-            *ptr = '\0';
-            ptr = password;
-            i = 0;
-        }
-        else if(isspace(c)) {
-            ptr++;
-        }
-        else if(i == MAX_USERNAME_SIZE) {
-           log_error("Error reading password file in %s(): username or password too long.", __func__);
-            fclose(f);
-            return -1;
-        }
-        else {
-            *ptr++ = c;
-            i++;
-        }
-    }
-    fclose(f);
-    *ptr = '\0';
-    if(!*username || !*password) {
-        log_error("Error Reading password file in %s(): Parsing failed, invalid format.", __func__);
-        return -1;
-    }
-    con = sa_create_proxied_connection(
-            PROXY_SERVER, PROXY_PORT,
-            server, SA_PORT,
-            username, password
-            );
-    result = sa_connect(con);
-    return result;
+	int c, i = 0, result;
+	sa_connection_s *con;
+	FILE *f;
+	char username[MAX_USERNAME_SIZE + 1];
+	char password[MAX_PASSWORD_SIZE + 1];
+	char *ptr = username;
+
+	f = fopen(PASSWORD_FILE, "r");
+	if(!f) {
+		log_error_errno("Failed to open password file: %s in %s()", 
+				PASSWORD_FILE, __func__);
+		return -1;
+	}
+	while((c = fgetc(f)) != EOF) {
+		if(c == ':') {
+			*ptr = '\0';
+			ptr = password;
+			i = 0;
+		}
+		else if(isspace(c)) {
+			ptr++;
+		}
+		else if(i == MAX_USERNAME_SIZE) {
+			log_error("Error reading password file in %s(): username or password too long.", __func__);
+			fclose(f);
+			return -1;
+		}
+		else {
+			*ptr++ = c;
+			i++;
+		}
+	}
+	fclose(f);
+	*ptr = '\0';
+	if(!*username || !*password) {
+		log_error("Error Reading password file in %s(): Parsing failed, invalid format.", __func__);
+		return -1;
+	}
+	con = sa_create_proxied_connection(
+			PROXY_SERVER, PROXY_PORT,
+			server, SA_PORT,
+			username, password
+			);
+	result = sa_connect(con);
+	return result;
 }
 
 void shutdown(void) {
