@@ -16,7 +16,7 @@ struct map_s {
 extern map_s *map_alloc(void);
 extern int map_insert(map_s *map, const char *key, void *value);
 extern void *map_get(map_s *map, const char *key);
-extern int map_delete(map_s *map, const char *key);
+extern void *map_delete(map_s *map, const char *key);
 extern void map_dealloc(map_s *map);
 
 extern void *sa_alloc(size_t size);

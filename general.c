@@ -39,6 +39,7 @@ int map_insert(map_s *map, const char *key, void *value) {
 	else {
 		*prec = nrec;
 	}
+	map->size++;
 	return 0;
 }
 
@@ -54,12 +55,13 @@ void *map_get(map_s *map, const char *key) {
 	return NULL;
 }
 
-int map_delete(map_s *map, const char *key) {
+void *map_delete(map_s *map, const char *key) {
 	map_record_s **prec = &map->table[pjw_hash(key)],
 				 *rec = *prec, *bptr;
 
 	for(bptr = rec; rec; rec = rec->next) {
 		if(!strcmp(rec->key, key)) {
+			void *value = rec->value;
 			if(rec == bptr) {
 				*prec = rec->next;
 			}
@@ -67,11 +69,12 @@ int map_delete(map_s *map, const char *key) {
 				bptr->next = rec->next;
 			}
 			free(rec);
-			return 0;
+			map->size--;
+			return value;
 		}
 		bptr = rec;
 	}
-	return -1;
+	return NULL;
 }
 
 void map_dealloc(map_s *map) {
