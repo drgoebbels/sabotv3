@@ -21,7 +21,7 @@ int main(void) {
 
 
 my $insertTests = "\tputs(\"---EXECUTING MAP INSERT TESTS---\");\n";
-for(my $i = 0; $i < 999; $i++) {
+for(my $i = 0; $i < 1000; $i++) {
 	my $key = $s->randregex('\d*\w*\s*');
 	my $val = $s->randregex('\d+\w+\s+');
 	$insertTests .= "\tresult = map_insert(test_map, \"$key\", \"$val\");\n";
