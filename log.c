@@ -53,49 +53,66 @@ int log_init(FILE *file) {
 
 void log_puts(const char *format, ...) {
 	va_list args;
-	va_start(args, format);
-	pthread_mutex_lock(&lock);
-	vfprintf(log_file, format, args);
-	fputc('\n', log_file);
-	fflush(log_file);
-	pthread_mutex_unlock(&lock);
-	va_end(args);
+	
+	if(log_file) {
+		va_start(args, format);
+		pthread_mutex_lock(&lock);
+		vfprintf(log_file, format, args);
+		fputc('\n', log_file);
+		fflush(log_file);
+		pthread_mutex_unlock(&lock);
+		va_end(args);
+	}
 }
 
 void log_debug(const char *format, ...) {
 	va_list args;
-	va_start(args, format);
-	log_format(format, "DEBUG", args);
-	va_end(args);
+	
+	if(log_file) {
+		va_start(args, format);
+		log_format(format, "DEBUG", args);
+		va_end(args);
+	}
 }
 
 void log_info(const char *format, ...) {
 	va_list args;
-	va_start(args, format);
-	log_format(format, "INFO", args);
-	va_end(args);
+
+	if(log_file) {
+		va_start(args, format);
+		log_format(format, "INFO", args);
+		va_end(args);
+	}
 }
 
 void log_warn(const char *format, ...) {
 	va_list args;
-	va_start(args, format);
-	log_format(format, "WARN", args);
-	va_end(args);
+	
+	if(log_file) {
+		va_start(args, format);
+		log_format(format, "WARN", args);
+		va_end(args);
+	}
 }
 
 void log_error(const char *format, ...) {
 	va_list args;
-	va_start(args, format);
-	log_format(format, "ERROR", args);
-	va_end(args);
+
+	if(log_file) {
+		va_start(args, format);
+		log_format(format, "ERROR", args);
+		va_end(args);
+	}
 }
 
 void log_error_errno(const char *format, ...) {
 	va_list args;
-
-	va_start(args, format);
-	log_format(format, "ERROR", args);
-	va_end(args);
+	
+	if(log_file) {
+		va_start(args, format);
+		log_format(format, "ERROR", args);
+		va_end(args);
+	}
 }
 
 void log_format(const char *format, const char *name, va_list args) {
@@ -147,6 +164,7 @@ void log_end(void) {
 	if(result) {
 		perror("Failed to destroy log file lock mutex");
 	}
+	log_file = NULL;
 }
 
 int log_create_directory(void) {
