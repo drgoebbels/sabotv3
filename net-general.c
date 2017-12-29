@@ -35,10 +35,3 @@ int net_try_connect(const char *server, int port) {
 	return fd;
 }
 
-int net_check_result(const char *funcc, int result, int expected) {
-    if(result < 0) {
-    }
-    else {
-    }
-}
-

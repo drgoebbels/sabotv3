@@ -49,6 +49,8 @@ extern sa_connection_s *sa_create_proxied_connection(
 };
 
 int sa_connect(sa_connection_s *con) {
+	int result;
+
     if(con->proxy_server) {
         con->fd = socks5_connect(con->proxy_server, con->proxy_port, 
                 con->server, con->port);
@@ -57,6 +59,10 @@ int sa_connect(sa_connection_s *con) {
         con->fd = net_try_connect(con->server, con->port);
     }
     if(con->fd >= 0) {
+		result = sa_login(con);
+		if(result) {
+			log_error("sa login failed for user: %s", con->username);
+		}
         return 0;
     }
     return -1;
@@ -78,8 +84,19 @@ int sa_login(sa_connection_s *con) {
     int result;
     const char init[] = PREFIX_KEY SERVER_KEY; 
 
+	log_debug("Sending server key");
     result = send(con->fd, init, sizeof(init), 0);
     if(result != sizeof(init)) {
+		if(result == -1) {
+			log_error_errno("Error on send() for initial server key in %s()", 
+				__func__);	
+		}
+		else {
+			log_error("Error on send() for inital server key in %s(). Unexpected number of bytes sent.", 
+					__func__);
+		}
+		return -1;
     }
+	return 0;
 }
 
