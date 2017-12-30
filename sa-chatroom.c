@@ -81,8 +81,9 @@ int sa_direct_connect(sa_connection_s *con) {
 }
 
 int sa_login(sa_connection_s *con) {
-    int result;
+    int result, size;
     const char init[] = PREFIX_KEY SERVER_KEY; 
+    char buf[BUF_SIZE];
 
 	log_debug("Sending server key");
     result = send(con->fd, init, sizeof(init), 0);
@@ -97,6 +98,32 @@ int sa_login(sa_connection_s *con) {
 		}
 		return -1;
     }
+    result = recv(con->fd, buf, BUF_SIZE, 0);
+    if(result != 3 || strcmp(buf, PREFIX_KEY)) {
+        if(result == -1) {
+            log_error_errno("Error on recv() after initial packet sent in %s()", 
+                __func__);
+        }
+        else {
+            log_error("Error on recv() after initial packet sent in %s(), unexpected result: %s.", __func__, buf);
+        }
+        return -1;
+    }
+    size = sprintf(buf, PREFIX_LOGIN "%s;%s", con->username, con->password) +1; 
+    result = send(con->fd, buf, size, 0);
+    if(result != size) {
+        if(result == -1) {
+            log_error_errno("Error on send() for login credentials in %s()", __func__);
+        }
+        else {
+			log_error("Error on send() for credentials in %s(). Unexpected number of bytes sent.", 
+                    __func__);
+        }
+        return -1;
+    }
+    result = recv(con->fd, buf, BUF_SIZE, 0);
+    log_info("result: ", buf);
+
 	return 0;
 }
 
