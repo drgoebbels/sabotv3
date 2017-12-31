@@ -1,7 +1,6 @@
 #include "log.h"
 #include "sa-chatroom.h"
 #include "net-general.h"
-#include "general.h"
 #include "socks5.h"
 #include <stdlib.h>
 #include <string.h>
@@ -27,15 +26,11 @@ sa_connection_s *sa_create_connection(
         const char *server, int port,
         const char *username, const char *password
         ) {
-    sa_connection_s *con = sa_alloc(sizeof *con);
-    con->proxy_server = NULL;
-    con->proxy_port = 0;
-    con->server = server;
-    con->port = port;
-    con->fd = -1;
-    strcpy(con->username, username);
-    strcpy(con->password, password);
-    return con;
+    return sa_create_proxied_connection(
+            NULL, 0, 
+            server, port,
+            username, password
+        );
 }
 
 extern sa_connection_s *sa_create_proxied_connection(
@@ -49,8 +44,10 @@ extern sa_connection_s *sa_create_proxied_connection(
     con->server = server;
     con->port = port;
     con->fd = -1;
-    strcpy(con->username, username);
+    strcpy(con->user.username, username);
     strcpy(con->password, password);
+    map_init(&con->name_keyed_map);
+    map_init(&con->id_keyed_map);
     return con;
 };
 
@@ -67,7 +64,7 @@ int sa_connect(sa_connection_s *con) {
     if(con->fd >= 0) {
         result = sa_login(con);
         if(result) {
-            log_error("sa login failed for user: %s", con->username);
+            log_error("sa login failed for user: %s", con->user.username);
         }
         return 0;
     }
@@ -115,7 +112,7 @@ int sa_login(sa_connection_s *con) {
         }
         return -1;
     }
-    size = sprintf(buf, PREFIX_LOGIN "%s;%s", con->username, con->password) +1; 
+    size = sprintf(buf, PREFIX_LOGIN "%s;%s", con->user.username, con->password) +1; 
     result = send(con->fd, buf, size, 0);
     if(result != size) {
         if(result == -1) {
@@ -138,7 +135,7 @@ int sa_login(sa_connection_s *con) {
 
     }
     else {
-        log_error("Failed to login users: %s", con->username);
+        log_error("Failed to login users: %s", con->user.username);
         return -1;
     }
     strcpy(buf, P_0C);

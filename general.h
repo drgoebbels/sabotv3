@@ -11,9 +11,10 @@ typedef struct map_record_s map_record_s;
 
 struct map_s {
 	int size;
-	map_record_s *table[HASH_TABLE_SIZE]; };
+	map_record_s *table[HASH_TABLE_SIZE]; 
+};
 
-extern map_s *map_alloc(void);
+extern void map_init(map_s *map);
 extern int map_insert(map_s *map, const char *key, void *value);
 extern void *map_get(map_s *map, const char *key);
 extern void *map_delete(map_s *map, const char *key);

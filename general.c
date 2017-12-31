@@ -10,8 +10,14 @@ struct map_record_s {
 
 static unsigned pjw_hash(const char *key);
 
-map_s *map_alloc(void) {
-	return sa_allocz(sizeof(map_s));
+void map_init(map_s *map) {
+    int i;
+    map_record_s **ptr;
+
+    map->size = 0;
+    for(i = 0, ptr = map->table; i < HASH_TABLE_SIZE; i++) {
+        *ptr++ = 0;
+    }
 }
 
 int map_insert(map_s *map, const char *key, void *value) {
@@ -89,7 +95,6 @@ void map_dealloc(map_s *map) {
 			rec = bptr;
 		}
 	}
-	free(map);
 }
 
 void *sa_alloc(size_t size) {
