@@ -184,6 +184,7 @@ int sa_login(sa_connection_s *con) {
         return -1;
     }
 
+    con->state = SA_CON_CONNECTED;
     result = pthread_create(&con->main_loop, NULL, sa_main_loop, con);
     if(result) {
         log_error_explicit(result, "Error on pthread_create() for main loop in %s()", __func__);
@@ -193,14 +194,22 @@ int sa_login(sa_connection_s *con) {
     if(result) {
         log_error_explicit(result, "Error on pthread_create() for keep alive thread in %s()", __func__);
     }
-
     return 0;
 }
 
-
 void *sa_main_loop(void *args) {
     sa_connection_s *con = args;
+    int result, fd = con->fd;
+    char buf[BUF_SIZE];
     log_info("starting main loop for user: %s", con->user.username);
+
+    while(con->state == SA_CON_CONNECTED) {
+        result = recv(fd, buf, sizeof(buf), 0);
+        if(result == -1) {
+            log_error_errno("Error: recv() failed in %s", __func__); 
+        }
+        log_info("%s", buf);
+    }
     pthread_exit(NULL);
 }
 

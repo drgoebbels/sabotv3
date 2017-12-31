@@ -86,6 +86,7 @@ int sa_login_from_file_tor(const char *server) {
             username, password
             );
     result = sa_connect(con);
+    pthread_join(con->main_loop, NULL);
     return result;
 }
 
