@@ -13,6 +13,7 @@ extern void log_info(const char *format, ...);
 extern void log_warn(const char *format, ...);
 extern void log_error(const char *format, ...);
 extern void log_error_errno(const char *format, ...);
+extern void log_error_explicit(int err, const char *format, ...);
 extern void log_end(void);
 
 #endif

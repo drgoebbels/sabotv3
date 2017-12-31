@@ -20,7 +20,11 @@
 #define P_03 "03_"
 #define FIRST_JOIN_PACKET "02Z900_"
 
+#define KEEP_ALIVE_INTERVAL 10
+
 static int sa_login(sa_connection_s *con);
+static void *sa_main_loop(void *args); 
+static void *sa_keep_alive(void *args);
 
 sa_connection_s *sa_create_connection(
         const char *server, int port,
@@ -30,7 +34,7 @@ sa_connection_s *sa_create_connection(
             NULL, 0, 
             server, port,
             username, password
-        );
+            );
 }
 
 extern sa_connection_s *sa_create_proxied_connection(
@@ -39,6 +43,7 @@ extern sa_connection_s *sa_create_proxied_connection(
         const char *username, const char *password
         ) {
     sa_connection_s *con = sa_alloc(sizeof *con);
+    con->state = SA_CON_INIT;
     con->proxy_server = proxy_server;
     con->proxy_port = proxy_port;
     con->server = server;
@@ -178,6 +183,55 @@ int sa_login(sa_connection_s *con) {
         }
         return -1;
     }
+
+    result = pthread_create(&con->main_loop, NULL, sa_main_loop, con);
+    if(result) {
+        log_error_explicit(result, "Error on pthread_create() for main loop in %s()", __func__);
+        return -1;
+    }
+    result = pthread_create(&con->keep_alive, NULL, sa_keep_alive, con);
+    if(result) {
+        log_error_explicit(result, "Error on pthread_create() for keep alive thread in %s()", __func__);
+    }
+
     return 0;
+}
+
+
+void *sa_main_loop(void *args) {
+    sa_connection_s *con = args;
+    log_info("starting main loop for user: %s", con->user.username);
+    pthread_exit(NULL);
+}
+
+void *sa_keep_alive(void *args) {
+    sa_connection_s *con = args;
+    int result, fd = con->fd;
+    log_debug("starting keep alive thread for chatroom");
+
+    while(con->state == SA_CON_CONNECTED) {
+        result = sleep(KEEP_ALIVE_INTERVAL);
+        if(!result) {
+            result = send(fd, P_0, sizeof(P_0), 0);
+            if(result != sizeof(P_0)) {
+                if(result == -1) {
+                    log_error_errno("Error while sending P_0 keep alive packet in %s().", __func__);
+                }
+                else {
+                    log_error("Error while sending P_0 keep alive packet in %s() - Unexpected number of bytes sent.", __func__);
+                }
+            }
+            result = send(fd, P_01, sizeof(P_01), 0);
+            if(result != sizeof(P_01)) {
+                if(result == -1) {
+                    log_error_errno("Error while sending P_01 keep alive packet in %s().", __func__);
+                }
+                else {
+                    log_error("Error while sending P_01 keep alive packet in %s() - Unexpected number of bytes sent.", __func__);
+                }
+            }
+        }
+    }
+    pthread_exit(NULL);
 }
 
