@@ -119,7 +119,7 @@ int sa_login(sa_connection_s *con) {
     result = send(con->fd, buf, size, 0);
     if(result != size) {
         if(result == -1) {
-    log_info("buf result: %s", buf);
+            log_info("buf result: %s", buf);
             log_error_errno("Error on send() for login credentials in %s()", __func__);
         }
         else {
@@ -135,15 +135,15 @@ int sa_login(sa_connection_s *con) {
     }
     else if(result > 0) {
         log_info("result more than 0: %s", buf);
-        
+
     }
     else {
         log_error("Failed to login users: %s", con->username);
         return -1;
     }
-	strcpy(buf, P_0C);
-	strcpy(buf + 3, P_01);
-	result = send(con->fd, buf, 6, 0);
+    strcpy(buf, P_0C);
+    strcpy(buf + 3, P_01);
+    result = send(con->fd, buf, 6, 0);
     if(result != 6) {
         if(result == -1) {
             log_error_errno("Error on send() after login in %s()", __func__);
@@ -154,13 +154,13 @@ int sa_login(sa_connection_s *con) {
         }
         return -1;
     }
-	result = recv(con->fd, buf, BUF_SIZE, 0);
+    result = recv(con->fd, buf, BUF_SIZE, 0);
     if(result == -1) {
         log_error_errno("Error on recv() 2 after credentials sent %s()", __func__);
         return -1;
     }
-	if(buf[0] == '0' && buf[1] == '1' && !buf[2]) {
-		result = send(con->fd, FIRST_JOIN_PACKET, sizeof(FIRST_JOIN_PACKET), 0);
+    if(buf[0] == '0' && buf[1] == '1' && !buf[2]) {
+        result = send(con->fd, FIRST_JOIN_PACKET, sizeof(FIRST_JOIN_PACKET), 0);
         if(result != sizeof(FIRST_JOIN_PACKET)) {
             if(result == -1) {
                 log_error_errno("Error on send() for FIRST_JOIN_PACKET in %s()", __func__);
@@ -170,7 +170,7 @@ int sa_login(sa_connection_s *con) {
             }
             return -1;
         }
-	}
+    }
     result = send(con->fd, P_03, sizeof(P_03), 0);
     if(result != sizeof(P_03)) {
         if(result == -1) {
