@@ -62,7 +62,7 @@ int sa_login_from_file_tor(const char *server) {
 			i = 0;
 		}
 		else if(isspace(c)) {
-			ptr++;
+            continue;
 		}
 		else if(i == MAX_USERNAME_SIZE) {
 			log_error("Error reading password file in %s(): username or password too long.", __func__);
@@ -74,7 +74,7 @@ int sa_login_from_file_tor(const char *server) {
 			i++;
 		}
 	}
-	fclose(f);
+    fclose(f);
 	*ptr = '\0';
 	if(!*username || !*password) {
 		log_error("Error Reading password file in %s(): Parsing failed, invalid format.", __func__);
