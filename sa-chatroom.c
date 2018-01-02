@@ -3,6 +3,7 @@
 #include "net-general.h"
 #include "socks5.h"
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -25,6 +26,14 @@
 static int sa_login(sa_connection_s *con);
 static void *sa_main_loop(void *args); 
 static void *sa_keep_alive(void *args);
+
+static int sa_self(sa_connection_s *con, char *raw);
+static void sa_user_color(sa_user_s *user, char *raw);
+
+static int sa_create_game(
+        sa_connection_s *con, const char *name, sa_arena_e arena, 
+        sa_arena_type_e type, bool is_private
+        );
 
 sa_connection_s *sa_create_connection(
         const char *server, int port,
@@ -85,7 +94,6 @@ int sa_direct_connect(sa_connection_s *con) {
         log_error_errno("Error on socket() in %s()", __func__);
         return -1;
     }
-
 }
 
 int sa_login(sa_connection_s *con) {
@@ -117,7 +125,7 @@ int sa_login(sa_connection_s *con) {
         }
         return -1;
     }
-    size = sprintf(buf, PREFIX_LOGIN "%s;%s", con->user.username, con->password) +1; 
+    size = sprintf(buf, PREFIX_LOGIN "%s;%s", con->user.username, con->password) + 1; 
     result = send(con->fd, buf, size, 0);
     if(result != size) {
         if(result == -1) {
@@ -136,8 +144,13 @@ int sa_login(sa_connection_s *con) {
         return -1;
     }
     else if(result > 0) {
-        log_info("result more than 0: %s", buf);
-
+        if(*buf == 'A') {
+           sa_self(con, buf); 
+        }
+        else {
+            log_error("Unexpected server response on recv() in %s(): %s", __func__, buf);
+            return -1;
+        }
     }
     else {
         log_error("Failed to login users: %s", con->user.username);
@@ -203,6 +216,8 @@ void *sa_main_loop(void *args) {
     char buf[BUF_SIZE];
     log_info("starting main loop for user: %s", con->user.username);
 
+    sa_create_game(con, "test", SA_ARENA_XGENHQ, SA_ARENA_TYPE_REPEAT, false);
+
     while(con->state == SA_CON_CONNECTED) {
         result = recv(fd, buf, sizeof(buf), 0);
         if(result == -1) {
@@ -242,5 +257,66 @@ void *sa_keep_alive(void *args) {
         }
     }
     pthread_exit(NULL);
+}
+
+int sa_self(sa_connection_s *con, char *raw) {
+    int padding, name_size;
+    sa_user_s *self = &con->user;
+
+    log_info("raw: %s", raw);
+    self->id[0] = *++raw;
+    self->id[1] = *++raw;
+    self->id[2] = *++raw;
+    self->id[3] = '\0';
+    raw += 21; //skip over username, already know
+
+    sa_user_color(&con->user, raw);
+    log_info("rgb: %d %d %d", con->user.color.r, con->user.color.g, con->user.color.b);
+
+    return -1;
+}
+
+void sa_user_color(sa_user_s *user, char *raw) {
+    char bck;
+
+    bck = raw[3];
+    raw[3] = '\0';
+    user->color.r = atoi(raw);
+    raw[3] = bck;
+    raw += 3;
+
+    bck = raw[3];
+    raw[3] = '\0';
+    user->color.g = atoi(raw);
+    raw[3] = bck;
+    raw += 3;
+
+    bck = raw[3];
+    raw[3] = '\0';
+    user->color.b = atoi(raw);
+    raw[3] = bck;
+    raw += 3;
+}
+
+
+int sa_create_game(
+        sa_connection_s *con, const char *name, sa_arena_e arena, 
+        sa_arena_type_e type, bool is_private) 
+{
+    int size, result;
+    char buf[BUF_SIZE];
+
+    size = sprintf(buf, "02%d%d%d0%s;", arena, type, is_private, name) + 1;
+    result = send(con->fd, buf, size, 0);
+    if(result != size) {
+        if(result == -1) {
+            log_error_errno("Error trying to create game on send() in %s()", __func__);
+        }
+        else {
+            log_error("Error trying to create game on send() in %s() - Unexpected number of bytes sent.", __func__);
+        }
+        return -1;
+    }
+    return 0;
 }
 

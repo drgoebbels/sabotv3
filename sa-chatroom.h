@@ -12,6 +12,8 @@
 #define SERVER_2D_CENTRAL "45.76.234.65"
 
 typedef enum sa_con_state_e sa_con_state_e;
+typedef enum sa_arena_e sa_arena_e;
+typedef enum sa_arena_type_e sa_arena_type_e;
 
 typedef struct sa_user_s sa_user_s;
 typedef struct sa_connection_s sa_connection_s;
@@ -23,9 +25,23 @@ enum sa_con_state_e {
     SA_CON_DISCONNECTED,
 };
 
+
+enum sa_arena_e {
+    SA_ARENA_XGENHQ
+};
+
+enum sa_arena_type_e {
+    SA_ARENA_TYPE_CYCLE,
+    SA_ARENA_TYPE_RANDOM,
+    SA_ARENA_TYPE_REPEAT
+};
+
 struct sa_user_s {
     char id[4];
     char username[MAX_USERNAME_SIZE + 1];
+    struct {
+        char r, g, b;
+    } color;
 };
 
 struct sa_connection_s {
