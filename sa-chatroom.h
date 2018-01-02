@@ -9,6 +9,7 @@
 
 #define SA_PORT 1138
 
+//ballistick5.xgenstudios.com
 #define SERVER_2D_CENTRAL "45.76.234.65"
 
 typedef enum sa_con_state_e sa_con_state_e;
@@ -17,6 +18,7 @@ typedef enum sa_arena_type_e sa_arena_type_e;
 
 typedef struct sa_user_s sa_user_s;
 typedef struct sa_connection_s sa_connection_s;
+typedef struct sa_vector_s sa_vector_s;
 
 enum sa_con_state_e {
     SA_CON_INIT,
@@ -24,7 +26,6 @@ enum sa_con_state_e {
     SA_CON_SHUTDOWN,
     SA_CON_DISCONNECTED,
 };
-
 
 enum sa_arena_e {
     SA_ARENA_XGENHQ
@@ -57,6 +58,9 @@ struct sa_connection_s {
     map_s name_keyed_map;
     pthread_t main_loop;
     pthread_t keep_alive;
+};
+
+struct sa_vector_s {
 };
 
 extern sa_connection_s *sa_create_connection(

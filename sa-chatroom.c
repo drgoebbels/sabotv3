@@ -29,6 +29,7 @@ static void *sa_keep_alive(void *args);
 
 static int sa_self(sa_connection_s *con, char *raw);
 static void sa_user_color(sa_user_s *user, char *raw);
+static int sa_join_game(sa_connection_s *con, const char *name);
 
 static int sa_create_game(
         sa_connection_s *con, const char *name, sa_arena_e arena, 
@@ -217,7 +218,7 @@ void *sa_main_loop(void *args) {
     log_info("starting main loop for user: %s", con->user.username);
 
     sa_create_game(con, "test", SA_ARENA_XGENHQ, SA_ARENA_TYPE_REPEAT, false);
-
+    sa_join_game(con, "test");
     while(con->state == SA_CON_CONNECTED) {
         result = recv(fd, buf, sizeof(buf), 0);
         if(result == -1) {
@@ -319,4 +320,23 @@ int sa_create_game(
     }
     return 0;
 }
+
+int sa_join_game(sa_connection_s *con, const char *name) {
+    int size, result;
+    char buf[BUF_SIZE];
+
+    size = sprintf(buf, "04%s", name) + 1;
+    result = send(con->fd, buf, size, 0);
+    if(result != size) {
+        if(result == -1) {
+            log_error_errno("Error trying to join game on send() in %s()", __func__);
+        }
+        else {
+            log_error("Error trying to join game on send() in %s() - Unexpected number of bytes sent.", __func__); 
+        }
+        return -1;
+    }
+    return 0;
+}
+
 
