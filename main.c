@@ -2,6 +2,7 @@
 #include "db.h"
 #include "pool.h"
 #include "sa-chatroom.h"
+#include "sa-map.h"
 #include "server.h"
 #include "socks5.h"
 #include <stdio.h>
@@ -17,6 +18,7 @@
 static int sa_login_from_file_tor(const char *server);
 static void shutdown(void);
 
+static void test_map_file(const char *name);
 
 int main(void) {
     int result; 
@@ -80,6 +82,7 @@ int sa_login_from_file_tor(const char *server) {
         log_error("Error Reading password file in %s(): Parsing failed, invalid format.", __func__);
         return -1;
     }
+	test_map_file("__xgenhq.dat");
     con = sa_create_proxied_connection(
             PROXY_SERVER, PROXY_PORT,
             server, SA_PORT,
@@ -93,5 +96,14 @@ int sa_login_from_file_tor(const char *server) {
 void shutdown(void) {
     log_info("Gracefully Shutting down SA Bot V3");
     log_end();
+}
+
+void test_map_file(const char *name) {
+	int result;
+	sa_map_s map;
+	buf_s src = read_file(name);
+
+	result = sa_parse_map(&map, src);
+
 }
 

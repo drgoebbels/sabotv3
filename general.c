@@ -97,6 +97,58 @@ void map_dealloc(map_s *map) {
 	}
 }
 
+void buf_init(buf_s *buf) {
+	buf->data = sa_alloc(INITIAL_BUF_SIZE);
+	buf->bsize = INITIAL_BUF_SIZE;
+	buf->size = 0;
+}
+
+void buf_add_char(buf_s *buf, char c) {
+	char *raw;
+	
+	if(buf->size == buf->bsize) {
+		buf->bsize *= 2;
+		buf->data = sa_ralloc(buf->data, buf->bsize);
+	}
+	raw = buf->data;
+	raw[buf->size++] = c;
+}
+
+void buf_add_int(buf_s *buf, int i) {
+	size_t real_size = sizeof(i) * buf->size;
+	size_t new_size = real_size + sizeof(i);
+	int *raw;
+	
+	if(new_size >= buf->bsize) {
+		buf->bsize *= 2;
+		buf->data = sa_ralloc(raw, buf->bsize); 
+	}
+	raw = buf->data;
+	raw[buf->size++] = i;
+}
+
+void buf_dealloc(buf_s *buf) {
+	free(buf->data);
+}
+
+buf_s read_file(const char *file_name) {
+	int c;
+	FILE *f;
+	buf_s buf;
+
+	f = fopen(file_name, "r");
+	if(!f) {
+		perror("failed to open file");
+		buf.data = NULL;
+	}
+	buf_init(&buf);
+	while((c = fgetc(f)) != EOF)
+		buf_add_char(&buf, c);
+	buf_add_char(&buf, '\0');
+	fclose(f);
+	return buf;
+}
+
 void *sa_alloc(size_t size) {
 	void *p = malloc(size);
 	if(!p) {
