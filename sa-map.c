@@ -21,42 +21,46 @@ enum map_token_e {
 };
 
 struct map_token_s {
+	int len;
 	map_token_e type;
 	char lex[MAX_LEX_LEN];
 };
 
 static void map_lex(char *src);
-static map_token_s *map_next_tok(char **ptr);
-static map_token_s *map_token_init(char *lexeme, int len, map_token_e type);
+static int map_next_tok(map_token_s *tok, char **ptr);
+static int map_token_init(map_token_s *tok, char *lexeme, int len, map_token_e type);
+static int sa_build_map(sa_map_s *map, char **ptr);
+static int sa_parse_heading(sa_map_s *map, char **ptr);
 
 int sa_parse_map(sa_map_s *map, buf_s src) {
 	map_token_s *tok;		
-	char *ptr = src.data;
+	char *data;
 
-	while((tok = map_next_tok(&ptr))->type != MAP_TOK_EOF) {
-		log_info("token: %s type: %d", tok->lex, tok->type);
-	}
+	data = src.data;	
+	sa_build_map(map, &data);
+	log_info("infx: %d infy: %d name: '%s'", map->infx, map->infy, map->name);
 
+	return 0;
 }
 
-map_token_s *map_next_tok(char **ptr) {
+int map_next_tok(map_token_s *tok, char **ptr) {
 	bool got_alpha;
+	int result;
 	char *fptr = *ptr, *bptr, bck;
-	map_token_s *t;
 
 	while(isspace(*fptr))
 		fptr++;
 	switch(*fptr) {
 		case '=':
-			t =  map_token_init("=", 1, MAP_TOK_EQ);
+			result =  map_token_init(tok, "=", 1, MAP_TOK_EQ);
 			fptr++;
 			break;
 		case '&':
-			t = map_token_init("&", 1, MAP_TOK_AMP);
+			result = map_token_init(tok, "&", 1, MAP_TOK_AMP);
 			fptr++;
 			break;
 		case '\0':
-			t = map_token_init("EOF", 3, MAP_TOK_EOF);
+			result = map_token_init(tok, "EOF", 3, MAP_TOK_EOF);
 			break;
 		default:
 			if(isdigit(*fptr)) {
@@ -74,9 +78,9 @@ map_token_s *map_next_tok(char **ptr) {
 				bck = *fptr;
 				*fptr = '\0';
 				if(got_alpha) 
-					t = map_token_init(bptr, fptr - bptr, MAP_TOK_IDENT);
+					result = map_token_init(tok, bptr, fptr - bptr, MAP_TOK_IDENT);
 				else
-					t = map_token_init(bptr, fptr - bptr, MAP_TOK_INT);
+					result = map_token_init(tok, bptr, fptr - bptr, MAP_TOK_INT);
 				*fptr = bck;
 			}
 			else if(isalnum(*fptr) || *fptr == '_') {
@@ -85,25 +89,99 @@ map_token_s *map_next_tok(char **ptr) {
 					fptr++;
 				bck = *fptr;
 				*fptr = '\0';
-				t = map_token_init(bptr, fptr - bptr, MAP_TOK_IDENT);
+				result = map_token_init(tok, bptr, fptr - bptr, MAP_TOK_IDENT);
 				*fptr = bck;
+			}
+			else {
+				log_error("Lexical Error Parsing sa map file in %s() - Unrecognized char: %c", __func__, *fptr);
+				fptr++;
+				result = -1;
 			}
 			break;
 	}
 	*ptr = fptr;
-	return t;
+	return result;
 }
 
-map_token_s *map_token_init(char *lexeme, int len, map_token_e type) {
-	map_token_s *t;
-
-	t = sa_alloc(sizeof *t);
+int map_token_init(map_token_s *t, char *lexeme, int len, map_token_e type) {
 	if(len >= MAX_LEX_LEN) {
-		log_error("Error parsing sa map file - lexeme too long %s.", lexeme);
-		return NULL;
+		log_error("Lexical Error parsing sa map file in %s() - lexeme too long %s.", __func__, lexeme);
+		return -1;
 	}
 	strcpy(t->lex, lexeme);
 	t->type = type;
-	return t;
+	t->len = len;
+	return 0;
+}
+
+int sa_build_map(sa_map_s *map, char **ptr) {
+	int result;	
+
+	result = sa_parse_heading(map, ptr);
+	if(result) 
+		return -1;
+}
+
+int sa_parse_heading(sa_map_s *map, char **ptr) {
+	int result, count;
+	map_token_s tok;
+
+	result = map_next_tok(&tok, ptr);
+	if(result)
+		return -1;
+	if(tok.type == MAP_TOK_IDENT && !strcmp(tok.lex, "inf")) {
+		result = map_next_tok(&tok, ptr);
+		if(result) 
+			return -1;
+		if(tok.type != MAP_TOK_EQ) {
+			log_error("Syntax Error parsing sa map in %s(): expected '=', but got: %s", __func__, tok.lex);
+			return -1;
+		}
+		result = map_next_tok(&tok, ptr);
+		if(result)
+			return -1;
+		if(tok.type != MAP_TOK_INT) {
+			log_error("Syntax Error parsing sa map in %s(): expected integer, but got: %s", __func__, tok.lex);
+			return -1;
+		}
+		map->infx = atoi(tok.lex);
+		result = map_next_tok(&tok, ptr);
+		if(result)
+			return -1;
+		if(tok.type != MAP_TOK_INT) {
+			log_error("Syntax Error parsing sa map in %s(): expected integer, but got: %s", __func__, tok.lex);
+			return -1;
+		}
+		map->infy = atoi(tok.lex);
+		count = 0;
+		while(true) {
+			result = map_next_tok(&tok, ptr);
+			if(result)
+				return -1;
+			if(tok.type == MAP_TOK_AMP) {
+				return 0;
+			}
+			else {
+				if(count > 0) {
+					if(count >= MAX_ARENA_NAME_SIZE - 1) {
+						log_error("Error parsing sa map in %s(): game name too long: %s", __func__, tok.lex);
+						return -1;
+					}
+					map->name[count++] = ' ';
+				}
+				if(count + tok.len + 1 >= MAX_ARENA_NAME_SIZE) {
+						log_error("Error parsing sa map in %s(): game name too long: %s", __func__, tok.lex);
+						return -1;
+				}
+				strcpy(&map->name[count], tok.lex);
+				count += tok.len;
+			}
+		}
+		log_info("got map name: %s", map->name);
+	}
+	else {
+		log_error("Syntax Error parsing sa map in %s(): unexpected token: %s", __func__, tok.lex);
+		return -1;
+	}
 }
 

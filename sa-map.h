@@ -3,11 +3,13 @@
 
 #include "general.h"
 
+#define MAX_ARENA_NAME_SIZE 64
+
 typedef struct sa_map_s sa_map_s;
 
 struct sa_map_s {
 	int infx, infy;
-	char name[64];
+	char name[MAX_ARENA_NAME_SIZE];
 	buf_s tiles;
 	buf_s sp;
 	buf_s ws;
