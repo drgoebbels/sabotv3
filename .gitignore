@@ -4,3 +4,4 @@ sa
 *.log
 logs
 test.sh
+*.dat
