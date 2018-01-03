@@ -8,6 +8,7 @@ typedef struct pool_task_s pool_task_s;
 typedef struct pool_s pool_s;
 
 struct pool_task_s {
+	bool isindependent;
 	bool isfinished;
 	void *result;
 	void *arg;
@@ -19,7 +20,7 @@ struct pool_task_s {
 };
 
 extern pool_s *pool_init(int nthreads);
-extern pool_task_s *pool_task_create(pool_s *pool, void *(*f)(void *), void *arg);
+extern pool_task_s *pool_task_create(pool_s *pool, void *(*f)(void *), void *arg, bool isindependent);
 extern int pool_join_task(pool_task_s *task);
 extern void pool_destroy_task(pool_task_s *task);
 extern void pool_shutdown(pool_s *pool);

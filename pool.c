@@ -66,7 +66,7 @@ pool_s *pool_init(int nthreads) {
 	return pool;
 }
 
-pool_task_s *pool_task_create(pool_s *pool, void *(*f)(void *), void *arg) {
+pool_task_s *pool_task_create(pool_s *pool, void *(*f)(void *), void *arg, bool isindependent) {
 	int result;
 	pool_task_s *t;
 
@@ -74,6 +74,7 @@ pool_task_s *pool_task_create(pool_s *pool, void *(*f)(void *), void *arg) {
 		return NULL;
 	}
 	t = sa_alloc(sizeof *t);
+	t->isindependent = isindependent;
 	t->isfinished = false;
 	t->result = NULL;
 	t->arg = arg;
@@ -130,7 +131,7 @@ void *core_thread(void *args) {
 	pool_s *pool = core->pool;
 	pool_task_s *task;
 
-	log_info("Starting up core thread: %d.", core->id);
+	//log_debug("Starting up core thread: %d.", core->id);
 	while(true) {
 		pthread_mutex_lock(&pool->qlock);
 		while(!pool->head && pool->state == POOL_STATE_ACTIVE) 
@@ -142,6 +143,9 @@ void *core_thread(void *args) {
 			pthread_mutex_lock(&task->lock);
 			task->result = task->f(task->arg);
 			task->isfinished = true;
+			if(task->isindependent) {
+				pool_destroy_task(task);
+			}
 			pthread_cond_signal(&task->cond);
 			pthread_mutex_unlock(&task->lock);
 		}

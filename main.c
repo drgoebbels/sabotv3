@@ -41,6 +41,7 @@ int main(void) {
     else {
         log_error("Unsuccessful connection");
     }
+	pthread_join(http_server.pid, NULL);
     shutdown();
     return 0;
 }

@@ -7,6 +7,7 @@
 typedef struct http_server_s http_server_s;
 
 struct http_server_s {
+	int fd;
 	int port;
 	pthread_t pid;
 	pool_s *pool;
