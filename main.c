@@ -23,14 +23,14 @@ static void test_map_file(const char *name);
 
 int main(void) {
     int result; 
-	http_request_s req;
+	http_server_s http_server;
 
     log_init_name("sabot.log");
     log_puts("##########################################################");
     log_puts("------------------- Starting SA Bot V3 -------------------");
     log_puts("==========================================================");
     db_init(DATABASE_NAME);
-    result = http_server_start(LISTEN_PORT);
+    result = http_server_start(&http_server, LISTEN_PORT);
     if(result < 0) {
         log_error("Failed to start server on port %d.", LISTEN_PORT);
     }
@@ -91,6 +91,9 @@ int sa_login_from_file_tor(const char *server) {
             username, password
             );
     result = sa_connect(con);
+	if(result) {
+		return -1;
+	}
     pthread_join(con->main_loop, NULL);
     return result;
 }

@@ -129,11 +129,11 @@ void log_error_explicit(int err, const char *format, ...) {
 void log_format(const char *format, const char *name, va_list args) {
     time_t now;
     char buffer[64];
-    struct tm *local_time;
+    struct tm local_time;
 
     now = time(NULL);
-    local_time = localtime(&now);
-    strftime(buffer, 64, "%Y-%m-%dT%H:%M:%S%z", local_time);
+    localtime_r(&now, &local_time);
+    strftime(buffer, 64, "%Y-%m-%dT%H:%M:%S%z", &local_time);
     pthread_mutex_lock(&lock);
     fprintf(log_file, "*%s*\t%s\t", name, buffer);
     vfprintf(log_file, format, args);
@@ -150,16 +150,15 @@ void log_format_explicit(int err, const char *format, const char *name, va_list 
     time_t now;
     int result;
     char buffer[ERR_BUF_SIZE + 1];
-    struct tm *local_time;
+    struct tm local_time;
 
     now = time(NULL);
-    local_time = localtime(&now);
-    strftime(buffer, 64, "%Y-%m-%dT%H:%M:%S%z", local_time);
+    localtime_r(&now, &local_time);
+    strftime(buffer, 64, "%Y-%m-%dT%H:%M:%S%z", &local_time);
     pthread_mutex_lock(&lock);
     fprintf(log_file, "*%s*\t%s\t", name, buffer);
     vfprintf(log_file, format, args);
     fputs(" : ", log_file);
-    buffer[ERR_BUF_SIZE + 1] = '\0';
     while((result = strerror_r(err, buffer, ERR_BUF_SIZE)) != 0) {
         fputs(buffer, log_file);
     }
