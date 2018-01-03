@@ -5,4 +5,4 @@ sa
 logs
 test.sh
 *.dSYM*
-
+*.dat
