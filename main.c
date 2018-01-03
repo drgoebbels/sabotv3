@@ -1,6 +1,7 @@
 #include "log.h"
 #include "db.h"
 #include "pool.h"
+#include "http.h"
 #include "sa-chatroom.h"
 #include "sa-map.h"
 #include "server.h"
@@ -22,6 +23,7 @@ static void test_map_file(const char *name);
 
 int main(void) {
     int result; 
+	http_request_s req;
 
     log_init_name("sabot.log");
     log_puts("##########################################################");
