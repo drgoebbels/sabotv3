@@ -30,7 +30,7 @@ int main(void) {
     log_puts("------------------- Starting SA Bot V3 -------------------");
     log_puts("==========================================================");
     db_init(DATABASE_NAME);
-    result = server_start(LISTEN_PORT);
+    result = http_server_start(LISTEN_PORT);
     if(result < 0) {
         log_error("Failed to start server on port %d.", LISTEN_PORT);
     }
