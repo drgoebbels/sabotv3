@@ -4,3 +4,5 @@ sa
 *.log
 logs
 test.sh
+*.dSYM*
+
