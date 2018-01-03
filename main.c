@@ -82,7 +82,7 @@ int sa_login_from_file_tor(const char *server) {
         log_error("Error Reading password file in %s(): Parsing failed, invalid format.", __func__);
         return -1;
     }
-	test_map_file("__xgenhq.dat");
+	test_map_file("xgen-data/maps/__xgenhq.dat");
     con = sa_create_proxied_connection(
             PROXY_SERVER, PROXY_PORT,
             server, SA_PORT,

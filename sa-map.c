@@ -30,19 +30,36 @@ struct map_token_s {
 static void map_lex(char *src);
 static int map_next_tok(map_token_s *tok, char **ptr);
 static int map_token_init(map_token_s *tok, char *lexeme, int len, map_token_e type);
-static int sa_build_map(sa_map_s *map, char **ptr);
 static int sa_parse_heading(sa_map_s *map, char **ptr);
 static int sa_parse_tiles(sa_map_s *map, char **ptr);
 static int sa_parse_tile_list(sa_map_s *map, char **ptr);
+static int sa_parse_intlist(char **ptr, const char *id, buf_s *buf);
+static int sa_parse_int(char **ptr, const char *id, int *i);
 
 int sa_parse_map(sa_map_s *map, buf_s src) {
-	map_token_s *tok;		
-	char *data;
+    int result;
+	map_token_s tok;		
+	char *ptr;
 
-	data = src.data;	
-	sa_build_map(map, &data);
-	log_info("infx: %d infy: %d name: '%s'", map->infx, map->infy, map->name);
-
+	ptr = src.data;	
+	result = sa_parse_heading(map, &ptr);
+	if(result) 
+		return -1;
+	result = sa_parse_tiles(map, &ptr);
+	if(result)
+		return -1;
+    result = sa_parse_intlist(&ptr, "sp", &map->sp);
+    if(result)
+        return -1;
+    result = sa_parse_intlist(&ptr, "ws", &map->ws);
+    if(result)
+        return -1;
+    result = sa_parse_int(&ptr, "rt", &map->rt);
+    if(result)
+        return -1;
+    result = sa_parse_int(&ptr, "ts", &map->rt);
+    if(result)
+        return -1;
 	return 0;
 }
 
@@ -114,18 +131,6 @@ int map_token_init(map_token_s *t, char *lexeme, int len, map_token_e type) {
 	strcpy(t->lex, lexeme);
 	t->type = type;
 	t->len = len;
-	return 0;
-}
-
-int sa_build_map(sa_map_s *map, char **ptr) {
-	int result;	
-
-	result = sa_parse_heading(map, ptr);
-	if(result) 
-		return -1;
-	result = sa_parse_tiles(map, ptr);
-	if(result)
-		return -1;
 	return 0;
 }
 
@@ -216,13 +221,13 @@ int sa_parse_tiles(sa_map_s *map, char **ptr) {
 }
 
 int sa_parse_tile_list(sa_map_s *map, char **ptr) {
-	int tile_list_size = 0, 
-		tile_list_bsize = INITIAL_TILE_LIST_SIZE,
+	int tile_list_size = 0,
+        product = map->infx * map->infy,
 		result;
 	map_token_s tok;
 	sa_tile_s tile, *tile_buffer;
 	
-	tile_buffer = sa_alloc(tile_list_bsize * sizeof(*tile_buffer));
+	tile_buffer = sa_alloc(product * sizeof(*tile_buffer));
 	while(true) {
 		result = map_next_tok(&tok, ptr);
 		if(result == -1) {
@@ -230,9 +235,8 @@ int sa_parse_tile_list(sa_map_s *map, char **ptr) {
 			return -1;
 		}
 		if(tok.type == MAP_TOK_AMP) {
-			int inf_product = map->infx * map->infy;
-			if(tile_list_size != inf_product) {
-				log_error("Unexpected tile list size in parsed map in %s(). Expected %d, but got %d tiles.", __func__, inf_product, tile_list_size);
+			if(tile_list_size != product) {
+				log_error("Unexpected tile list size in parsed map in %s(). Expected %d, but got %d tiles.", __func__, product, tile_list_size);
 				free(tile_buffer);
 				return -1;
 			}
@@ -246,10 +250,10 @@ int sa_parse_tile_list(sa_map_s *map, char **ptr) {
 				free(tile_buffer);
 				return -1;
 			}
-			if(tile_list_size == tile_list_bsize) {
-				tile_list_bsize *= 2;
-				tile_buffer = sa_ralloc(tile_buffer, tile_list_bsize * sizeof(*tile_buffer));
-			}
+            if(tile_list_size >= product) {
+                log_error("More tiles than expected found in %s()", __func__);
+                return -1;
+            }
 			strcpy(tile_buffer[tile_list_size].id, tok.lex);
 			tile_list_size++;
 		}
@@ -260,5 +264,99 @@ int sa_parse_tile_list(sa_map_s *map, char **ptr) {
 		}
 	}	
 
+}
+
+int sa_parse_intlist(char **ptr, const char *id, buf_s *buf) {
+    int result, i;
+    map_token_s tok;
+
+    result = map_next_tok(&tok, ptr);
+    if(result == -1)
+        return -1;
+    if(tok.type == MAP_TOK_IDENT && !strcmp(tok.lex, id)) {
+        result = map_next_tok(&tok, ptr);
+        if(result)
+            return -1;
+        if(tok.type != MAP_TOK_EQ) {
+            log_error("Syntax Error parsing sa map in %s(): expected '=' but got: %s", __func__, tok.lex);
+            return -1;
+        }
+        buf_init(buf);
+        while(true) {
+            result = map_next_tok(&tok, ptr);
+            if(result) {
+                buf_dealloc(buf);
+                return -1;
+            }
+            if(tok.type == MAP_TOK_INT) {
+               i = atoi(tok.lex); 
+               buf_add_int(buf, i);
+            } 
+            else if(tok.type == MAP_TOK_AMP) {
+                return 0;
+            }
+            else {
+                buf_dealloc(buf);
+                log_error("Syntax Error parsing sa map in %s(): expected integer but got %s.", __func__, tok.lex);
+                return -1;
+            }
+        }
+    }
+    else {
+        log_error("Syntax Error parsing sa map in %s(): expected %s identifier but got %s", __func__, id, tok.lex);
+        return -1;
+    }
+}
+
+
+int sa_parse_int(char **ptr, const char *id, int *i) {
+    int result;
+    map_token_s tok;
+
+    result = map_next_tok(&tok, ptr);
+    if(result)
+        return -1;
+    if(tok.type == MAP_TOK_IDENT && !strcmp(tok.lex, id)) {
+        result = map_next_tok(&tok, ptr);
+        if(result)
+            return -1;
+        if(tok.type != MAP_TOK_EQ) {
+            log_error("Syntax Error parsing sa map in %s(): expected '=' but got: %s", __func__, tok.lex);
+            return -1;
+        }
+        result = map_next_tok(&tok, ptr);
+        if(result)
+            return -1;
+        if(tok.type != MAP_TOK_INT) {
+            if(tok.type == MAP_TOK_IDENT && !strcmp(tok.lex, "undefined")) {
+                *i = -1;
+            }
+            else {
+                log_error("Syntax Error parsing sa map in %s(): expected integer but got: %s", __func__, tok.lex);
+                return -1;
+            }
+        }
+        else {
+            *i = atoi(tok.lex);
+        }
+        result = map_next_tok(&tok, ptr);
+        if(result)
+            return -1;
+        if(tok.type != MAP_TOK_AMP && tok.type != MAP_TOK_EOF) {
+            log_error("Syntax error parsing sa map in %s(): expected '&' or EOF, but got %s", __func__, tok.lex);
+            return -1;
+        }
+        return 0;
+    }
+    else {
+        log_error("Syntax Error parsing sa map in %s(): expected identifier %s but got %s.", __func__, id, tok.lex);
+        return -1;
+    }
+}
+
+void sa_map_dealloc(sa_map_s *map) {
+    buf_dealloc(&map->sp);
+    buf_dealloc(&map->ws);
+    free(map->tiles);
 }
 

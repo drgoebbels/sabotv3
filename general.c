@@ -121,7 +121,7 @@ void buf_add_int(buf_s *buf, int i) {
 	
 	if(new_size >= buf->bsize) {
 		buf->bsize *= 2;
-		buf->data = sa_ralloc(raw, buf->bsize); 
+		buf->data = sa_ralloc(buf->data, buf->bsize); 
 	}
 	raw = buf->data;
 	raw[buf->size++] = i;

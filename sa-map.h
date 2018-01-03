@@ -24,6 +24,7 @@ struct sa_map_s {
 };
 
 extern int sa_parse_map(sa_map_s *map, buf_s src);
+extern void sa_map_dealloc(sa_map_s *map);
 
 #endif
 
