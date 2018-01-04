@@ -22,3 +22,11 @@ int db_init(const char *name) {
 int db_prepare_queries(void) {
 }
 
+int db_check_dns_cache(const char *host_name, char *address_buffer) {
+	return 0;
+}
+
+int db_insert_dns_entry(const char *host_name, const char *address) {
+	return 0;
+}
+

@@ -22,6 +22,7 @@ struct http_request_s {
 
 extern int http_parse_request(http_request_s *req, char *raw);
 extern void http_reqest_header_dealloc(http_request_s *req);
+extern int http_do_request(http_request_s *req);
 
 #endif
 

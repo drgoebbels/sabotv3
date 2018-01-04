@@ -68,6 +68,12 @@ CREATE TABLE aes_key(
 		  PRIMARY KEY(id)
 );
 
+DROP TABLE IF EXISTS dns_cache;
+CREATE TABLE dns_cache(
+	id INTEGER NOT NULL,
+	host TEXT,
+	address VARCHAR(15)
+); 
 
 INSERT INTO sabot.server(ip, name) VALUES("45.76.234.65", "2 Dimensional Central");
 INSERT INTO sabot.server(ip, name) VALUES("74.86.43.8", "Paper Thin City");
