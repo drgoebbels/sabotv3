@@ -34,6 +34,9 @@ int main(void) {
     if(result < 0) {
         log_error("Failed to start server on port %d.", LISTEN_PORT);
     }
+
+    http_test("http://billy:bob@www.derp.com:322/hello/derp");
+
     result = sa_login_from_file_tor(SERVER_2D_CENTRAL);
     if(result == 0) {
         log_info("Successful connection");
