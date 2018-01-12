@@ -37,6 +37,7 @@ void http_test(char *uri) {
     int result;
     uri_s u;
 
+	log_info("parsing uri: %s", uri);
     result = http_parse_uri(&u, uri);
     if(result) {
         log_error("parse test failed");
@@ -180,11 +181,7 @@ int http_parse_uri(uri_s *uri, const char *raw) {
 	i = 1;
 	scheme[0] = *ptr++;
 	while(isalnum(*ptr) || *ptr == '+' || *ptr == '-' || *ptr == '.') {
-		scheme[i++] == *ptr++;
-        bck = scheme[i];
-        scheme[i] = '\0';
-        log_info("scheme: %s %c %d", scheme, *(ptr - 1), i - 1);
-        scheme[i] = bck;
+		scheme[i++] = *ptr++;
 		if(i == MAX_URI_SCHEME) {
 			log_error("Error in %s() parsing URI %s: URI scheme too long", __func__, uri_buf);
 			return -1;
