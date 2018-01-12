@@ -147,7 +147,7 @@ int http_do_request(http_request_s *req) {
 	 * pct-encoded = "%" HEXDIG HEXDIG
 	 * sub-delims  = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="	
 	 */
-
+    
 
 }
 
