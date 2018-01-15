@@ -32,6 +32,7 @@ struct uri_s {
     char user_name[MAX_USERINFO];
     char password[MAX_USERINFO];
     char host[MAX_HOST];
+    bool is_ipv4;
     int port;
     char path[MAX_URI_PATH];
 };
@@ -63,6 +64,8 @@ static int http_syntax_uri(uri_s *uri, uri_toklist_s *list);
 
 static int http_syntax_scheme(uri_s *uri, uri_tok_s **tok);
 static int http_syntax_user_info(uri_s *uri, uri_tok_s **tok);
+static int http_syntax_host(uri_s *uri, uri_tok_s **tok);
+static int http_host_is_ipv4(char *lex);
 
 void http_test(char *uri) {
     int result;
@@ -79,6 +82,7 @@ void http_test(char *uri) {
         log_info("username: %s", u.user_name);
         log_info("password: %s", u.password);
         log_info("host: %s", u.host);
+        log_info("is_ipv4: %d", u.is_ipv4);
         log_info("port: %d", u.port);
         log_info("path: %s", u.path);
     }
@@ -293,6 +297,11 @@ int http_syntax_uri(uri_s *uri, uri_toklist_s *list) {
         return -1;
     }
 
+    result = http_syntax_host(uri, &tok);
+    if(result == -1) {
+        return -1;
+    }
+
     return 0;
     
 }
@@ -338,7 +347,7 @@ int http_syntax_user_info(uri_s *uri, uri_tok_s **tok) {
                 password = t;
                 t = t->next;
                 if(t->type == URI_AMP) {
-                    *tok = t;
+                    *tok = t->next;
                     if(user_name->len >= MAX_USERINFO) {
                         log_error("Error parsing URI in %s() - username too long %s.", __func__, user_name->lex);
                         return -1;
@@ -360,5 +369,50 @@ int http_syntax_user_info(uri_s *uri, uri_tok_s **tok) {
     *uri->password = '\0';
     *tok = t;
     return 0;
+}
+
+int http_syntax_host(uri_s *uri, uri_tok_s **tok) {
+    uri_tok_s *t = *tok;
+
+    if(t->type == URI_SEGMENT) {
+        if(t->len < MAX_HOST) {
+            strcpy(uri->host, t->lex);
+            uri->is_ipv4 = http_host_is_ipv4(t->lex);
+        }
+        else {
+            log_error("Error parsing URI in %s(): Host name too long: %s", __func__, t->lex);
+            return -1;
+        }
+    }
+    else {
+        log_error("Syntax Error parsing URI in %s(): Expected text sequence for host, but got %s.", __func__, t->lex);
+        return -1;
+    }
+}
+
+int http_host_is_ipv4(char *lex) {
+    int octet, i;
+    char *bptr;
+    
+    for(i = 0; i < 4; i++) {
+        if(isdigit(*lex)) {
+            bptr = lex;
+            while(isdigit(*++lex));
+            if(*lex != '.') {
+                if(*lex || (!*lex && i < 3))
+                    return false;
+            }
+            *lex = '\0';
+            octet = atoi(bptr);
+            *lex = '.';
+            if(octet > 255)
+                return false;
+            lex++;
+        }
+        else {
+            return false;
+        }
+    }
+    return true;
 }
 
