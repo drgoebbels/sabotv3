@@ -13,7 +13,18 @@
 #define MAX_URI_PATH 128
 #define URI_BUF_SIZE 512
 
+typedef enum uri_tok_type_e uri_tok_type_e;
+
 typedef struct uri_s uri_s;
+typedef struct uri_tok_s uri_tok_s;
+typedef struct uri_toklist_s uri_toklist_s;
+
+enum uri_tok_type_e {
+    URI_SEGMENT,
+    URI_AMP,
+    URI_COLON,
+    URI_END
+};
 
 struct uri_s {
 	char scheme[MAX_URI_SCHEME];
@@ -21,6 +32,18 @@ struct uri_s {
 	char host[MAX_HOST];
 	int port;
     char path[MAX_URI_PATH];
+};
+
+struct uri_tok_s {
+    uri_tok_type_e type;
+    size_t len;
+    char *lex;
+    uri_tok_s *prev, *next;
+};
+
+struct uri_toklist_s {
+    uri_tok_s *head;
+    uri_tok_s *tail;
 };
 
 static const char *supported_methods[] = {
@@ -32,6 +55,9 @@ static bool http_check_method(const char *method);
 
 static int http_resolve_address(const char *host_name, char *address_buffer);
 static int http_parse_uri(uri_s *uri, const char *raw);
+static int http_lex_uri(uri_toklist_s *list, const char *raw);
+static void http_add_token(uri_toklist_s *list, char *lex, size_t lex_len, uri_tok_type_e type);
+static int http_syntax_uri(uri_s *uri, uri_toklist_s *list);
 
 void http_test(char *uri) {
     int result;
@@ -146,7 +172,6 @@ void http_reqest_header_dealloc(http_request_s *req) {
 int http_do_request(http_request_s *req) {
 	uri_s uri;
 	
-
 }
 
 
@@ -158,122 +183,88 @@ int http_resolve_address(const char *host_name, char *address_buffer) {
 	return 0;
 }
 
+/*
+ * authority   = [ userinfo "@" ] host [ ":" port ]
+ *
+ * userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
+ * unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+ * pct-encoded = "%" HEXDIG HEXDIG
+ * sub-delims  = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="	
+ */
 int http_parse_uri(uri_s *uri, const char *raw) {
-	int i, j;
+    int result;
+    uri_tok_s *tok;
+    uri_toklist_s list = {NULL, NULL};    
+    
+    result = http_lex_uri(&list, raw);
+    if(result == -1) {
+        log_error("Lexical Analysis on URI %s failed in %s()", raw, __func__);
+        return -1;
+    }
+    result = http_syntax_uri(uri, &list);
+    if(result == -1) {
+        log_error("Syntax Analysis on URI %s failed in %s()", raw, __func__);
+        return -1;
+    }
+    return 0;
+}
+
+int http_lex_uri(uri_toklist_s *list, const char *raw) {
     size_t len;
-	char *scheme = uri->scheme;
-    char *uri_ptr = uri->path;
-	char buf[MAX_PORT], bck;
-    char uri_buf[URI_BUF_SIZE];
-	char *ptr = uri_buf, *bptr;
+    char buf[URI_BUF_SIZE];
+    char *fptr = buf, *bptr = buf;
 
     len = strlen(raw);
     if(len >= URI_BUF_SIZE) {
-        log_error("Error parsing URI in %s() - URI too long %s.", __func__, uri_buf);
+        log_error("Error in %s(), URI %s too long for parsing.", __func__, raw);
         return -1;
     }
-    strcpy(uri_buf, raw);
+    strcpy(buf, raw);
 
-	if(!isalpha(*ptr)) {
-		log_error("Error in %s() parsing URI %s: invalid URI scheme", __func__, uri_buf);
-		return -1;
-	}
-	i = 1;
-	scheme[0] = *ptr++;
-	while(isalnum(*ptr) || *ptr == '+' || *ptr == '-' || *ptr == '.') {
-		scheme[i++] = *ptr++;
-		if(i == MAX_URI_SCHEME) {
-			log_error("Error in %s() parsing URI %s: URI scheme too long", __func__, uri_buf);
-			return -1;
-		}
-	}
-	scheme[i] = '\0';
-	if(strcmp(scheme, "http")) {
-		log_error("Error in %s() - Protocol/scheme %s not supported. Only http supported.", __func__, scheme);
-		return -1;
-	}
-	if(*ptr != ':') {
-		log_error("Error in %s() parsing URI %s: Expected ':' after scheme, but got %c.", __func__, uri_buf, *ptr);
-		return -1;
-	}
-	ptr++;
-	if(*ptr != '/' || *(ptr + 1) != '/') {
-		log_error("Error in %s() parsing URI %s: Expected '//' after scheme, but got %c%c", __func__, uri_buf, *ptr, *(ptr + 1));
-		return -1;
-	}
-	ptr += 2;
-	/*
-	 * authority   = [ userinfo "@" ] host [ ":" port ]
-	 *
-	 * userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
-	 * unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
-	 * pct-encoded = "%" HEXDIG HEXDIG
-	 * sub-delims  = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="	
-	 */
-	i = 0;
-	bptr = ptr;
-	*uri->user_info = '\0';
-	while(*ptr) {
-		if(*ptr == '@') {
-			if(i >= MAX_USERINFO) {
-				log_error("Error in %s() parsing URI %s: URI user info too long.", __func__, uri_buf);
-				return -1;
-			}
-			*ptr = '\0';
-			strcpy(uri->user_info, bptr);
-			bptr = ptr + 1;
-			*ptr = '@';
-		}
-        else if(*ptr == ':') {
-            if(i < MAX_HOST) {
-                *ptr = '\0';
-                strcpy(uri->host, bptr);
-                *ptr++ = ':';
+    while(*fptr) {
+        if(*fptr == '@') {
+            if(fptr - 1 > buf) {
+                *fptr = '\0';
+                http_add_token(list, bptr, fptr - bptr + 1, URI_SEGMENT);
             }
-            else {
-                log_error("Error parsing host name in %s(). URI %s too long.", __func__, bptr);
-                return -1;
-            }
-            for(j = 0; j < MAX_PORT; j++) {
-                if(*ptr == '/' || !*ptr) {
-                    bck = *ptr;
-                    *ptr = '\0';
-                    uri->port = atoi(bptr);
-                    *ptr = bck;
-                    break;
-                }
-                else if(isdigit(*ptr)) {
-                    ptr++;
-                }
-                else {
-                    log_error("Failed to parse port in %s() at ptr: %s.", __func__, bptr);
-                    return -1;
-                }
-            }
+            http_add_token(list, "@", sizeof("@"), URI_AMP); 
+            bptr = fptr + 1;
         }
-		else if(*ptr == '/') {
-		    if(i < MAX_HOST) {
-                *ptr = '\0';
-                strcpy(uri->host, bptr);
-                *ptr = '/';
+        else if(*fptr == ':') {
+            if(fptr - 1 > buf) {
+                *fptr = '\0';
+                http_add_token(list, bptr, fptr - bptr + 1, URI_SEGMENT);
             }
-            else {
-                log_error("Failed to parse host in %s(), host name too long for %s.", __func__, uri_buf);
-                return -1;
-            }
-		}
-		i++;
-	}
-    if(*ptr == '/') {
-        for(i = 0; *ptr && i < MAX_URI_PATH; i++) {
-            uri_ptr[i] = *ptr++;
+            http_add_token(list, ":", sizeof(":"), URI_COLON); 
+            bptr = fptr + 1;
         }
-        if(i == MAX_URI_PATH) {
-            log_error("Failed to parse URI path in %s(), path too long: %s.", __func__, uri_buf);
-            return -1;
-        }
-        uri_ptr[i] = '\0';
+        fptr++;
     }
+    if(*bptr) {
+        http_add_token(list, bptr, fptr - bptr + 1, URI_SEGMENT);
+    }
+    http_add_token(list, "@EOF@", sizeof("@EOF@"), URI_END);
     return 0;
+}
+
+void http_add_token(uri_toklist_s *list, char *lex, size_t lex_len, uri_tok_type_e type) {
+    uri_tok_s *t = sa_alloc(sizeof *t);
+    t->lex = sa_alloc(lex_len);
+    t->type = type;
+    t->next = NULL;
+    strcpy(t->lex, lex);
+    if(list->head) {
+        t->prev = list->tail;
+        list->tail->next = t;
+    }
+    else {
+        list->head = t;
+        t->prev = NULL;
+    }
+    list->tail = t;
+}
+
+int http_syntax_uri(uri_s *uri, uri_toklist_s *list) {
+    
 }
 
