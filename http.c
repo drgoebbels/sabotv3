@@ -68,6 +68,7 @@ static int http_syntax_user_info(uri_s *uri, uri_tok_s **tok);
 static int http_syntax_host(uri_s *uri, uri_tok_s **tok);
 static bool http_host_is_ipv4(char *lex);
 static int http_syntax_port(uri_s *uri, uri_tok_s **tok);
+static void http_free_toklist(uri_toklist_s *list);
 
 void http_test(char *uri) {
     int result;
@@ -214,10 +215,12 @@ int http_parse_uri(uri_s *uri, const char *raw) {
         return -1;
     }
     result = http_syntax_uri(uri, &list);
+    http_free_toklist(&list);
     if(result == -1) {
         log_error("Syntax Analysis on URI %s failed in %s()", raw, __func__);
         return -1;
     }
+
     return 0;
 }
 
@@ -487,5 +490,16 @@ int http_syntax_port(uri_s *uri, uri_tok_s **tok) {
     }
     *tok = t->next;
     return 0;
+}
+
+void http_free_toklist(uri_toklist_s *list) {
+    uri_tok_s *t = list->head, *bck;
+
+    while(t) {
+        bck = t->next;
+        free(t->lex);
+        free(t);
+        t = bck;
+    }
 }
 
