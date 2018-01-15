@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 
-#define MAX_URI_SCHEME 32
+#define MAX_URI_SCHEME 5
 #define MAX_USERINFO 64
 #define MAX_HOST 128
 #define MAX_PORT 8
@@ -21,6 +21,7 @@ typedef struct uri_toklist_s uri_toklist_s;
 
 enum uri_tok_type_e {
     URI_SEGMENT,
+    URI_HIER,
     URI_AMP,
     URI_COLON,
     URI_END
@@ -28,7 +29,8 @@ enum uri_tok_type_e {
 
 struct uri_s {
     char scheme[MAX_URI_SCHEME];
-    char user_info[MAX_USERINFO]; 
+    char user_name[MAX_USERINFO];
+    char password[MAX_USERINFO];
     char host[MAX_HOST];
     int port;
     char path[MAX_URI_PATH];
@@ -59,6 +61,9 @@ static int http_lex_uri(uri_toklist_s *list, const char *raw);
 static void http_add_token(uri_toklist_s *list, char *lex, size_t lex_len, uri_tok_type_e type);
 static int http_syntax_uri(uri_s *uri, uri_toklist_s *list);
 
+static int http_syntax_scheme(uri_s *uri, uri_tok_s **tok);
+static int http_syntax_user_info(uri_s *uri, uri_tok_s **tok);
+
 void http_test(char *uri) {
     int result;
     uri_s u;
@@ -71,7 +76,8 @@ void http_test(char *uri) {
     else {
         log_info("parse test passed");
         log_info("scheme: %s", u.scheme);
-        log_info("user_info: %s", u.user_info);
+        log_info("username: %s", u.user_name);
+        log_info("password: %s", u.password);
         log_info("host: %s", u.host);
         log_info("port: %d", u.port);
         log_info("path: %s", u.path);
@@ -238,6 +244,11 @@ int http_lex_uri(uri_toklist_s *list, const char *raw) {
             http_add_token(list, ":", sizeof(":"), URI_COLON); 
             bptr = fptr + 1;
         }
+        else if(*fptr == '/' && *(fptr + 1) == '/') {
+            http_add_token(list, "//", sizeof("//"), URI_HIER);
+            fptr++;
+            bptr = fptr + 1;
+        }
         fptr++;
     }
     if(*bptr) {
@@ -265,9 +276,89 @@ void http_add_token(uri_toklist_s *list, char *lex, size_t lex_len, uri_tok_type
 }
 
 int http_syntax_uri(uri_s *uri, uri_toklist_s *list) {
+    int result;
+    uri_tok_s *tok = list->head;
 
+    result = http_syntax_scheme(uri, &tok); 
+    if(result == -1) {
+        return -1;
+    }
+    if(tok->type != URI_HIER) {
+        log_error("Syntax Error parsing URI in %s(): Expected '//' but got %s.", __func__, tok->lex);
+        return -1;
+    }
+    tok = tok->next;
+    result = http_syntax_user_info(uri, &tok);
+    if(result == -1) {
+        return -1;
+    }
 
+    return 0;
+    
+}
 
+int http_syntax_scheme(uri_s *uri, uri_tok_s **tok) {
+    uri_tok_s *t = *tok, *scheme;
+    if(t->type == URI_SEGMENT) {
+        scheme = t;
+        t = t->next; 
+        if(t->type == URI_COLON) {
+            if(!strcmp(scheme->lex, "http")) {
+                strcpy(uri->scheme, "http");
+                *tok = t->next;
+                return 0;
+            }
+            else {
+                log_error("Error parsing URI in %s(), unsupported scheme/protocol: %s. Only http supported.", __func__, scheme->lex);
+            }
+        }
+        else {
+            log_error("Syntax Error parsing URI in %s(), expected ':' but got %s.", __func__, t->lex);
+        }
+    }
+    else {
+        log_error("Syntax Error parsing URI in %s(), expected text sequence but got %s.", __func__, t->lex);
+    }
+    *tok = t;
+    return -1;
+}
 
+/**
+ * parsing userinfo: note, this is substandard
+ */
+int http_syntax_user_info(uri_s *uri, uri_tok_s **tok) {
+    uri_tok_s *t = *tok, *user_name, *password;
+
+    if(t->type == URI_SEGMENT) {
+        user_name = t;
+        t = t->next;
+        if(t->type == URI_COLON) {
+            t = t->next;
+            if(t->type == URI_SEGMENT) {
+                password = t;
+                t = t->next;
+                if(t->type == URI_AMP) {
+                    *tok = t;
+                    if(user_name->len >= MAX_USERINFO) {
+                        log_error("Error parsing URI in %s() - username too long %s.", __func__, user_name->lex);
+                        return -1;
+                    }
+                    else if(password->len >= MAX_USERINFO) {
+                        log_error("Error parsing URI in %s() - password too long %s.", __func__, password->lex);
+                        return -1;
+                    }
+                    else {
+                        strcpy(uri->user_name, user_name->lex);
+                        strcpy(uri->password, password->lex);
+                        return 0;
+                    }
+                }
+            }
+        }
+    }
+    *uri->user_name = '\0';
+    *uri->password = '\0';
+    *tok = t;
+    return 0;
 }
 
