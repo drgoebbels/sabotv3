@@ -1,4 +1,5 @@
 #include "general.h"
+#include "http.h"
 #include "server.h"
 #include "log.h"
 #include <string.h>
@@ -89,12 +90,15 @@ void *server_thread(void *args) {
 
 void *sa_taskf(void *args) {
 	ssize_t result;
+	http_request_s req;
 	sa_task_s *task = args;
 	char buf[SERVER_BUF_SIZE + 1];
 	log_info("calling sa_task() with fd: %d", task->fd);
 	
 	while(read(task->fd, buf, SERVER_BUF_SIZE) > 0) {
 		buf[SERVER_BUF_SIZE] = '\0';
+		http_parse_request(&req, buf);
+		log_info("method: %s", req.method);
 		write(task->fd, "derp", sizeof("derp"));
 		log_info("read: %s", buf);
 	}
